@@ -20,18 +20,43 @@ def format_board_for_prompt(grid: List[List[int]]) -> str:
     return "\n".join(lines)
 
 
-def build_step_prompt(grid: List[List[int]], step: int, previous_moves: List[dict] = None) -> str:
+def build_step_prompt(grid: List[List[int]], step: int, previous_moves: List = None, 
+                      last_error: str = None, last_move: dict = None) -> str:
     board_str = format_board_for_prompt(grid)
     
-    prompt = f"""You are playing a Sudoku puzzle. Fill in ONE cell at a time.
+    error_feedback = ""
+    if last_error and last_move:
+        error_feedback = f"""
+⚠️ FEEDBACK - YOUR LAST MOVE WAS INVALID:
+You tried: row={last_move.get('row', '?')}, col={last_move.get('col', '?')}, value={last_move.get('value', '?')}
+Error: {last_error}
+Please analyze this error and make a CORRECT move now.
 
+"""
+    
+    move_history = ""
+    if previous_moves and len(previous_moves) > 0:
+        recent_moves = previous_moves[-3:] if len(previous_moves) > 3 else previous_moves
+        move_history = "\nRecent moves:\n"
+        for m in recent_moves:
+            status = "✓" if m.is_valid else "✗"
+            move_history += f"  {status} ({m.row},{m.col})={m.value}: {m.reasoning[:50] if m.reasoning else 'no reasoning'}\n"
+        move_history += "\n"
+    
+    prompt = f"""You are playing a Sudoku puzzle. Fill in ONE cell at a time.
+{error_feedback}
 Current board (step {step}):
 {board_str}
-
+{move_history}
 Rules:
 - Each row must contain digits 1-9 without repetition
 - Each column must contain digits 1-9 without repetition  
 - Each 3x3 box must contain digits 1-9 without repetition
+
+IMPORTANT: 
+- Analyze the board carefully before making a move
+- Check that your chosen number doesn't already exist in the same row, column, or 3x3 box
+- If you made an error before, learn from it and avoid the same mistake
 
 Respond in this exact format:
 THINKING: <brief reasoning why this number goes here>
@@ -42,6 +67,38 @@ THINKING: In row 0, the only missing number is 7
 MOVE: 0,2,7
 
 Now make your move:"""
+    
+    return prompt
+
+
+def build_error_feedback_prompt(grid: List[List[int]], step: int, error_detail: str,
+                                failed_move: dict, possible_values: set = None) -> str:
+    board_str = format_board_for_prompt(grid)
+    
+    possible_hint = ""
+    if possible_values:
+        possible_hint = f"\n💡 Hint: Valid values for cell ({failed_move['row']},{failed_move['col']}) are: {sorted(possible_values)}"
+    
+    prompt = f"""❌ ERROR - Your previous move was INVALID!
+
+You attempted to place {failed_move['value']} at position ({failed_move['row']},{failed_move['col']}).
+
+Error details: {error_detail}{possible_hint}
+
+Current board state:
+{board_str}
+
+Please make a DIFFERENT, VALID move. Double-check:
+1. The cell is empty (contains 0 or .)
+2. The value is not already in the same row
+3. The value is not already in the same column  
+4. The value is not already in the same 3x3 box
+
+Respond in this exact format:
+THINKING: <corrected reasoning for a valid move>
+MOVE: <row>,<col>,<value>
+
+Your corrected move:"""
     
     return prompt
 
