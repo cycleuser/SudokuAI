@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SudokuAI - LLM Sudoku Evaluation Platform</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #333; margin-bottom: 10px; }
+        .subtitle { color: #666; margin-bottom: 20px; }
+        
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .controls label { font-weight: 500; }
+        
+        select, input, button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: #0052a3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        
+        .sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 2px;
+            max-width: 450px;
+            margin: 20px auto;
+            background: #333;
+            padding: 2px;
+            border-radius: 4px;
+        }
+        
+        .sudoku-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            background: white;
+        }
+        
+        .sudoku-cell.fixed { background: #eee; color: #333; }
+        .sudoku-cell.empty { color: #0066cc; }
+        
+        .sudoku-cell:nth-child(3n) { border-right: 2px solid #666; }
+        .sudoku-cell:nth-child(9n) { border-right: none; }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .stat-value { font-size: 24px; font-weight: bold; color: #0066cc; }
+        .stat-label { font-size: 12px; color: #666; margin-top: 5px; }
+        
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .log-entry { margin: 5px 0; }
+        .log-success { color: #4ec9b0; }
+        .log-error { color: #f14c4c; }
+        .log-info { color: #3794ff; }
+        
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .two-col { grid-template-columns: 1fr; }
+            .controls { flex-direction: column; align-items: stretch; }
+        }
+        
+        .progress { 
+            width: 100%; 
+            height: 4px; 
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #0066cc;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .progress-bar.indeterminate {
+            width: 30%;
+            animation: indeterminate 1s infinite linear;
+        }
+        @keyframes indeterminate {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧩 SudokuAI</h1>
+        <p class="subtitle">LLM-powered Sudoku Evaluation Platform v{{ version }}</p>
+        
+        <div class="panel">
+            <h3>Game Controls</h3>
+            <div class="controls">
+                <label>Difficulty:
+                    <select id="difficulty">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                        <option value="expert">Expert</option>
+                        <option value="master">Master</option>
+                    </select>
+                </label>
+                <button onclick="generateGame()">New Game</button>
+                <button onclick="solveGame()">Solve</button>
+                <button onclick="validateGame()">Validate</button>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h3>Sudoku Board</h3>
+            <div class="progress" id="progress" style="display:none;">
+                <div class="progress-bar indeterminate" id="progressBar"></div>
+            </div>
+            <div class="sudoku-grid" id="sudokuGrid"></div>
+        </div>
+        
+        <div class="two-col">
+            <div class="panel">
+                <h3>LLM Configuration</h3>
+                <div class="controls" style="flex-direction: column; align-items: stretch;">
+                    <label>Provider:
+                        <select id="provider" onchange="refreshModels()">
+                            <option value="ollama">Ollama (Local)</option>
+                        </select>
+                    </label>
+                    <label>Model:
+                        <div style="display: flex; gap: 5px;">
+                            <select id="model" style="flex: 1;">
+                                <option value="">Loading...</option>
+                            </select>
+                            <button onclick="refreshModels()" style="padding: 5px 10px;">🔄</button>
+                        </div>
+                    </label>
+                    <label>Mode:
+                        <select id="mode">
+                            <option value="step">Step-by-step</option>
+                            <option value="oneshot">One-shot</option>
+                        </select>
+                    </label>
+                    <button onclick="llmPlay()">Let LLM Play</button>
+                    <button onclick="llmEvaluate()">Evaluate Model</button>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>Statistics</h3>
+                <div class="stats">
+                    <div class="stat-box">
+                        <div class="stat-value" id="statAccuracy">--</div>
+                        <div class="stat-label">Accuracy</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="statMoves">--</div>
+                        <div class="stat-label">Moves</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="statTime">--</div>
+                        <div class="stat-label">Time</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="statDifficulty">--</div>
+                        <div class="stat-label">Difficulty</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h3>Activity Log</h3>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+    
+    <script>
+        let currentGame = null;
+        
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${time}] ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function showProgress(show, text = 'Processing...') {
+            const progressEl = document.getElementById('progress');
+            progressEl.style.display = show ? 'block' : 'none';
+            if (show) {
+                document.getElementById('progressBar').style.width = '0%';
+            }
+        }
+        
+        function updateProgress(percent, text) {
+            const bar = document.getElementById('progressBar');
+            bar.classList.remove('indeterminate');
+            bar.style.width = percent + '%';
+            if (text) log(text, 'info');
+        }
+        
+        function renderGrid(puzzle) {
+            const grid = document.getElementById('sudokuGrid');
+            grid.innerHTML = '';
+            for (let i = 0; i < 81; i++) {
+                const row = Math.floor(i / 9);
+                const col = i % 9;
+                const value = puzzle[row][col];
+                const cell = document.createElement('div');
+                cell.className = 'sudoku-cell ' + (value ? 'fixed' : 'empty');
+                cell.textContent = value || '';
+                cell.dataset.row = row;
+                cell.dataset.col = col;
+                grid.appendChild(cell);
+            }
+        }
+        
+        async function refreshModels() {
+            const provider = document.getElementById('provider').value;
+            const modelSelect = document.getElementById('model');
+            modelSelect.innerHTML = '<option value="">Loading...</option>';
+            
+            try {
+                const response = await fetch(`/api/models?provider=${provider}`);
+                const result = await response.json();
+                
+                if (result.success && result.data.models.length > 0) {
+                    modelSelect.innerHTML = '';
+                    result.data.models.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m;
+                        opt.textContent = m;
+                        modelSelect.appendChild(opt);
+                    });
+                    log(`Loaded ${result.data.models.length} models for ${provider}`, 'success');
+                } else {
+                    modelSelect.innerHTML = '<option value="">Enter model name</option>';
+                    log(`No models found for ${provider}`, 'info');
+                }
+            } catch (e) {
+                modelSelect.innerHTML = '<option value="">Error loading models</option>';
+                log(`Error loading models: ${e.message}`, 'error');
+            }
+        }
+        
+        async function generateGame() {
+            const difficulty = document.getElementById('difficulty').value;
+            log(`Generating ${difficulty} puzzle...`);
+            showProgress(true);
+            
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({difficulty})
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentGame = result.data;
+                    renderGrid(currentGame.puzzle);
+                    document.getElementById('statDifficulty').textContent = difficulty;
+                    log(`New ${difficulty} puzzle generated (${currentGame.clues} clues)`, 'success');
+                } else {
+                    log(`Error: ${result.error}`, 'error');
+                }
+            } catch (e) {
+                log(`Request failed: ${e.message}`, 'error');
+            } finally {
+                showProgress(false);
+            }
+        }
+        
+        async function solveGame() {
+            if (!currentGame) {
+                log('No game loaded. Generate a new game first.', 'error');
+                return;
+            }
+            renderGrid(currentGame.solution);
+            log('Puzzle solved', 'success');
+        }
+        
+        async function validateGame() {
+            log('Validation not implemented for web interface yet', 'info');
+        }
+        
+        async function llmPlay() {
+            if (!currentGame) {
+                log('No game loaded. Generate a new game first.', 'error');
+                return;
+            }
+            
+            const provider = document.getElementById('provider').value;
+            const modelSelect = document.getElementById('model');
+            const model = modelSelect.value || modelSelect.options[modelSelect.selectedIndex]?.text || 'gemma3:4b';
+            const mode = document.getElementById('mode').value;
+            const difficulty = currentGame.difficulty;
+            
+            log(`Starting LLM play: ${model} (${mode} mode)...`);
+            showProgress(true);
+            log('🤖 Connecting to LLM...', 'info');
+            updateProgress(10, '📤 Sending puzzle to model...');
+            
+            try {
+                const response = await fetch('/api/play', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({provider, model, mode, difficulty})
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    const data = result.data;
+                    updateProgress(80, '📥 Processing response...');
+                    
+                    if (data.final_board) {
+                        renderGrid(data.final_board);
+                    }
+                    document.getElementById('statAccuracy').textContent = 
+                        data.correct ? '100%' : '0%';
+                    document.getElementById('statMoves').textContent = data.total_moves;
+                    document.getElementById('statTime').textContent = 
+                        data.time_elapsed.toFixed(1) + 's';
+                    
+                    updateProgress(100, '✅ Complete');
+                    log(`Game ${data.correct ? 'solved correctly!' : 'incorrect'}`, 
+                        data.correct ? 'success' : 'error');
+                    log(`Moves: ${data.total_moves} (${data.valid_moves} valid, ${data.invalid_moves} invalid)`, 'info');
+                    
+                    if (data.moves && data.moves.length > 0) {
+                        log(`📝 Move reasoning sample: ${data.moves[0].reasoning?.substring(0, 100) || 'N/A'}...`, 'info');
+                    }
+                } else {
+                    log(`Error: ${result.error}`, 'error');
+                }
+            } catch (e) {
+                log(`Request failed: ${e.message}`, 'error');
+            } finally {
+                showProgress(false);
+            }
+        }
+        
+        async function llmEvaluate() {
+            const provider = document.getElementById('provider').value;
+            const modelSelect = document.getElementById('model');
+            const model = modelSelect.value || modelSelect.options[modelSelect.selectedIndex]?.text || 'gemma3:4b';
+            const mode = document.getElementById('mode').value;
+            
+            log(`Starting evaluation: ${model}...`);
+            showProgress(true);
+            log('🚀 Initializing evaluation...', 'info');
+            
+            try {
+                const response = await fetch('/api/evaluate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        provider, model, mode,
+                        difficulties: ['easy', 'medium'],
+                        games_per_difficulty: 2
+                    })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    const data = result.data;
+                    document.getElementById('statAccuracy').textContent = 
+                        (data.overall_accuracy * 100).toFixed(0) + '%';
+                    document.getElementById('statMoves').textContent = data.total_games;
+                    document.getElementById('statTime').textContent = 
+                        data.total_time.toFixed(1) + 's';
+                    
+                    log(`Evaluation complete: ${(data.overall_accuracy * 100).toFixed(1)}% accuracy`, 'success');
+                    log(`Games: ${data.total_games}, Correct: ${data.correct_games}`, 'info');
+                    
+                    for (const [diff, stats] of Object.entries(data.results_by_difficulty || {})) {
+                        log(`📊 ${diff}: ${(stats.accuracy * 100).toFixed(0)}% (${stats.correct}/${stats.total})`, 'info');
+                    }
+                } else {
+                    log(`Error: ${result.error}`, 'error');
+                }
+            } catch (e) {
+                log(`Request failed: ${e.message}`, 'error');
+            } finally {
+                showProgress(false);
+            }
+        }
+        
+        // Initialize
+        renderGrid(Array(9).fill().map(() => Array(9).fill(0)));
+        refreshModels();
+        log('SudokuAI ready. Generate a new game to begin.', 'success');
+    </script>
+</body>
+</html>

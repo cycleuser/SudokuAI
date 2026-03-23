@@ -1,0 +1,38 @@
+{
+  "description": "LLM provider configurations",
+  "version": "1.0",
+  "providers": [
+    {
+      "name": "ollama",
+      "provider": "ollama",
+      "api_base": "http://localhost:11434/v1",
+      "default_model": "gemma3:4b",
+      "models": ["gemma3:4b", "gemma3:1b", "llama3", "mistral"],
+      "requires_api_key": false
+    },
+    {
+      "name": "aliyun",
+      "provider": "aliyun",
+      "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "default_model": "qwen-turbo",
+      "models": ["qwen-turbo", "qwen-plus", "qwen-max"],
+      "requires_api_key": true
+    },
+    {
+      "name": "minimax",
+      "provider": "minimax",
+      "api_base": "https://api.minimax.chat/v1",
+      "default_model": "abab6.5-chat",
+      "models": ["abab6.5-chat"],
+      "requires_api_key": true
+    },
+    {
+      "name": "openai",
+      "provider": "openai",
+      "api_base": "https://api.openai.com/v1",
+      "default_model": "gpt-4",
+      "models": ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"],
+      "requires_api_key": true
+    }
+  ]
+}

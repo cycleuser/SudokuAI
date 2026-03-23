@@ -1,0 +1,7 @@
+include LICENSE
+include README.md
+include README_CN.md
+include requirements.txt
+recursive-include sudokuai/templates *.html
+recursive-include data *.json
+recursive-include tests *.py
