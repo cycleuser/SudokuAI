@@ -206,6 +206,13 @@ DEFAULT_PROVIDERS = {
         model="gemma3:4b",
         api_key="ollama",
     ),
+    "openai": LLMConfig(
+        name="openai",
+        provider="openai",
+        api_base="https://api.openai.com/v1",
+        model="gpt-4o-mini",
+        api_key="",
+    ),
     "aliyun": LLMConfig(
         name="aliyun",
         provider="aliyun",
@@ -220,11 +227,25 @@ DEFAULT_PROVIDERS = {
         model="abab6.5-chat",
         api_key="",
     ),
-    "openai": LLMConfig(
-        name="openai",
-        provider="openai",
-        api_base="https://api.openai.com/v1",
-        model="gpt-4",
+    "deepseek": LLMConfig(
+        name="deepseek",
+        provider="deepseek",
+        api_base="https://api.deepseek.com/v1",
+        model="deepseek-chat",
+        api_key="",
+    ),
+    "moonshot": LLMConfig(
+        name="moonshot",
+        provider="moonshot",
+        api_base="https://api.moonshot.cn/v1",
+        model="moonshot-v1-8k",
+        api_key="",
+    ),
+    "zhipu": LLMConfig(
+        name="zhipu",
+        provider="zhipu",
+        api_base="https://open.bigmodel.cn/api/paas/v4",
+        model="glm-4-flash",
         api_key="",
     ),
 }

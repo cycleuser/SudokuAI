@@ -213,6 +213,7 @@ def llm_play_sudoku(
     provider: str = "ollama",
     model: str = None,
     mode: str = "step",
+    api_key: str = None,
     verbose: bool = True,
 ) -> ToolResult:
     try:
@@ -220,13 +221,23 @@ def llm_play_sudoku(
         if not config:
             return ToolResult(success=False, error=f"Unknown provider: {provider}")
         
+        effective_api_key = api_key if api_key else config.api_key
+        
         if model:
             config = LLMConfig(
                 name=config.name,
                 provider=config.provider,
                 api_base=config.api_base,
                 model=model,
-                api_key=config.api_key,
+                api_key=effective_api_key,
+            )
+        elif api_key:
+            config = LLMConfig(
+                name=config.name,
+                provider=config.provider,
+                api_base=config.api_base,
+                model=config.model,
+                api_key=effective_api_key,
             )
         
         gen_result = generate_sudoku(difficulty)
@@ -257,6 +268,7 @@ def evaluate_llm(
     games_per_difficulty: int = 3,
     difficulties: List[str] = None,
     mode: str = "step",
+    api_key: str = None,
     verbose: bool = True,
 ) -> ToolResult:
     try:
@@ -264,13 +276,23 @@ def evaluate_llm(
         if not config:
             return ToolResult(success=False, error=f"Unknown provider: {provider}")
         
+        effective_api_key = api_key if api_key else config.api_key
+        
         if model:
             config = LLMConfig(
                 name=config.name,
                 provider=config.provider,
                 api_base=config.api_base,
                 model=model,
-                api_key=config.api_key,
+                api_key=effective_api_key,
+            )
+        elif api_key:
+            config = LLMConfig(
+                name=config.name,
+                provider=config.provider,
+                api_base=config.api_base,
+                model=config.model,
+                api_key=effective_api_key,
             )
         
         difficulties = difficulties or ["easy", "medium"]
@@ -333,24 +355,37 @@ def list_llm_providers() -> ToolResult:
 def list_available_models(provider: str = "ollama") -> ToolResult:
     try:
         from .llm.providers.ollama import OllamaProvider
+        from .llm.providers.openai_compatible import (
+            AliyunProvider, MinimaxProvider, DeepSeekProvider,
+            OpenAIProvider, MoonshotProvider, ZhipuProvider
+        )
+        
+        provider_model_map = {
+            "ollama": (OllamaProvider, True),
+            "aliyun": (AliyunProvider, False),
+            "minimax": (MinimaxProvider, False),
+            "deepseek": (DeepSeekProvider, False),
+            "openai": (OpenAIProvider, False),
+            "moonshot": (MoonshotProvider, False),
+            "zhipu": (ZhipuProvider, False),
+        }
+        
+        if provider not in provider_model_map:
+            return ToolResult(success=False, error=f"Unknown provider: {provider}")
+        
+        provider_class, needs_api = provider_model_map[provider]
         
         if provider == "ollama":
-            ollama = OllamaProvider()
-            models = ollama.list_models()
-            return ToolResult(
-                success=True,
-                data={"provider": provider, "models": models},
-                metadata={"count": len(models)},
-            )
+            instance = OllamaProvider()
+            models = instance.list_models()
         else:
-            config = _providers.get(provider)
-            if config:
-                return ToolResult(
-                    success=True,
-                    data={"provider": provider, "models": [config.model]},
-                    metadata={"note": "Remote providers require manual model specification"},
-                )
-            return ToolResult(success=False, error=f"Unknown provider: {provider}")
+            models = provider_class.KNOWN_MODELS
+        
+        return ToolResult(
+            success=True,
+            data={"provider": provider, "models": models},
+            metadata={"count": len(models)},
+        )
     except Exception as e:
         return ToolResult(success=False, error=str(e))
 

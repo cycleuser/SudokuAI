@@ -61,11 +61,14 @@ def api_validate():
 @app.route("/api/play", methods=["POST"])
 def api_play():
     data = request.json or {}
+    api_key = data.get("api_key")
+    
     result = llm_play_sudoku(
         difficulty=data.get("difficulty", "medium"),
         provider=data.get("provider", "ollama"),
         model=data.get("model"),
         mode=data.get("mode", "step"),
+        api_key=api_key,
     )
     return jsonify(result.to_dict())
 
@@ -74,6 +77,7 @@ def api_play():
 def api_evaluate():
     data = request.json or {}
     difficulties = data.get("difficulties", ["easy", "medium"])
+    api_key = data.get("api_key")
     
     result = evaluate_llm(
         provider=data.get("provider", "ollama"),
@@ -81,6 +85,7 @@ def api_evaluate():
         games_per_difficulty=data.get("games_per_difficulty", 3),
         difficulties=difficulties,
         mode=data.get("mode", "step"),
+        api_key=api_key,
     )
     return jsonify(result.to_dict())
 

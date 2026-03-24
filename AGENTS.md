@@ -361,6 +361,23 @@ When the LLM makes an invalid move:
 3. Next prompt includes error feedback so LLM can learn
 4. `build_error_feedback_prompt()` provides detailed correction hints
 
+### LLM Education Module
+On the first move, the LLM receives a comprehensive education module (`SUDOKU_EDUCATION`) that includes:
+- Basic rules with coordinate system explanation
+- Three solving strategies in order of difficulty
+- Step-by-step process for each move
+- Example walkthrough with analysis
+- Common mistakes to avoid
+- Output format requirements
+
+Key functions in `sudokuai/llm/prompts.py`:
+- `build_step_prompt()`: Main prompt with optional education on first move
+- `build_error_feedback_prompt()`: Detailed error correction with hints
+- `build_oneshot_prompt()`: Full education + puzzle for one-shot mode
+- `get_possible_values()`: Calculate valid candidates for a cell
+- `find_best_cell()`: Find cell with fewest candidates (hint system)
+- `format_hints_for_cell()`: Generate human-readable cell analysis
+
 ## Web Interface
 
 The web interface (`sudokuai/templates/index.html`) provides:
