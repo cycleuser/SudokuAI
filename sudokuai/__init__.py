@@ -8,7 +8,7 @@ This package provides:
 - Multiple interfaces: CLI, GUI (PySide6), and Web (Flask)
 """
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 __author__ = "SudokuAI Team"
 
 from .api import (

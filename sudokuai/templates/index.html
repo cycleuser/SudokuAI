@@ -1,61 +1,105 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SudokuAI - LLM Sudoku Evaluation Platform</title>
     <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --accent: #2196F3;
+            --success: #4CAF50;
+            --warning: #FF9800;
+            --error: #F44336;
+            --border: #e0e0e0;
+        }
+        
+        [data-theme="dark"] {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #2d2d2d;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --accent: #64B5F6;
+            --success: #81C784;
+            --warning: #FFB74D;
+            --error: #E57373;
+            --border: #404040;
+        }
+        
         * { box-sizing: border-box; }
         body {
-            font-family: system-ui, -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0;
             padding: 20px;
-            background: #f5f5f5;
+            background: var(--bg-primary);
+            color: var(--text-primary);
         }
-        .container { max-width: 1200px; margin: 0 auto; }
-        h1 { color: #333; margin-bottom: 10px; }
-        .subtitle { color: #666; margin-bottom: 20px; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        h1 { margin-bottom: 5px; }
+        .subtitle { color: var(--text-secondary); margin-bottom: 20px; }
+        
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .theme-toggle {
+            padding: 8px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .theme-toggle:hover { background: var(--border); }
         
         .panel {
-            background: white;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 16px;
+            margin-bottom: 16px;
         }
+        .panel h3 { margin: 0 0 12px 0; }
         
-        .controls {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
+        .controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
         
-        .controls label { font-weight: 500; }
-        
-        select, input, button {
+        select, input {
             padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
             font-size: 14px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
         }
         
         button {
-            background: #0066cc;
-            color: white;
+            padding: 8px 16px;
             border: none;
+            border-radius: 6px;
             cursor: pointer;
-            transition: background 0.2s;
+            font-size: 14px;
+            font-weight: 500;
         }
-        button:hover { background: #0052a3; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
+        button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-secondary { background: #607D8B; color: white; }
         
         .sudoku-grid {
             display: grid;
             grid-template-columns: repeat(9, 1fr);
-            gap: 2px;
+            gap: 1px;
             max-width: 450px;
-            margin: 20px auto;
+            margin: 16px auto;
             background: #333;
             padding: 2px;
             border-radius: 4px;
@@ -66,72 +110,99 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: bold;
-            background: white;
+            background: var(--bg-primary);
+            color: var(--accent);
         }
+        .sudoku-cell.fixed { background: var(--bg-secondary); color: var(--text-primary); }
+        .sudoku-cell.valid-move { background: rgba(76, 175, 80, 0.3); animation: pulse 0.4s; }
+        .sudoku-cell.invalid-move { background: rgba(244, 67, 54, 0.3); animation: shake 0.4s; }
+        .sudoku-cell.conflict { background: rgba(255, 235, 59, 0.5); }
         
-        .sudoku-cell.fixed { background: #eee; color: #333; }
-        .sudoku-cell.empty { color: #0066cc; }
+        @keyframes pulse { 50% { transform: scale(1.05); } }
+        @keyframes shake {
+            25% { transform: translateX(-3px); }
+            75% { transform: translateX(3px); }
+        }
         
         .sudoku-cell:nth-child(3n) { border-right: 2px solid #666; }
         .sudoku-cell:nth-child(9n) { border-right: none; }
         
         .stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
         }
-        
         .stat-box {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 4px;
+            background: var(--bg-secondary);
+            padding: 12px;
+            border-radius: 6px;
             text-align: center;
         }
+        .stat-value { font-size: 20px; font-weight: bold; color: var(--accent); }
+        .stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
         
-        .stat-value { font-size: 24px; font-weight: bold; color: #0066cc; }
-        .stat-label { font-size: 12px; color: #666; margin-top: 5px; }
+        .thought-container {
+            max-height: 180px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .thought-bubble {
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .thought-bubble.thinking { background: #FFF8E1; border-color: #FFA000; }
+        .thought-bubble.valid { background: #E8F5E9; border-color: #4CAF50; }
+        .thought-bubble.invalid { background: #FFEBEE; border-color: #F44336; }
+        .thought-bubble .header { font-weight: 600; margin-bottom: 4px; font-size: 13px; }
+        .thought-bubble .content { font-size: 12px; color: var(--text-secondary); }
         
         .log {
             background: #1e1e1e;
-            color: #d4d4d4;
-            padding: 15px;
-            border-radius: 4px;
+            color: #b0b0b0;
+            padding: 12px;
+            border-radius: 6px;
             font-family: monospace;
-            font-size: 13px;
-            max-height: 200px;
+            font-size: 12px;
+            max-height: 160px;
             overflow-y: auto;
             white-space: pre-wrap;
         }
-        
-        .log-entry { margin: 5px 0; }
-        .log-success { color: #4ec9b0; }
-        .log-error { color: #f14c4c; }
-        .log-info { color: #3794ff; }
+        .log-success { color: #81C784; }
+        .log-error { color: #E57373; }
+        .log-info { color: #64B5F6; }
+        .log-warning { color: #FFB74D; }
         
         .two-col {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 16px;
         }
+        
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; margin-bottom: 4px; font-size: 13px; color: var(--text-secondary); }
+        .form-group select, .form-group input { width: 100%; }
         
         @media (max-width: 768px) {
             .two-col { grid-template-columns: 1fr; }
-            .controls { flex-direction: column; align-items: stretch; }
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .header-bar { flex-direction: column; gap: 12px; }
         }
         
         .progress { 
-            width: 100%; 
-            height: 4px; 
-            background: #e0e0e0;
+            height: 3px; 
+            background: var(--bg-secondary);
             border-radius: 2px;
-            overflow: hidden;
-            margin: 10px 0;
+            margin: 8px 0;
         }
         .progress-bar {
             height: 100%;
-            background: #0066cc;
+            background: var(--success);
+            border-radius: 2px;
             width: 0%;
             transition: width 0.3s;
         }
@@ -143,15 +214,39 @@
             0% { transform: translateX(-100%); }
             100% { transform: translateX(400%); }
         }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            border-radius: 6px;
+            color: white;
+            font-size: 13px;
+            z-index: 1000;
+            animation: fadein 0.3s;
+        }
+        .toast.error { background: rgba(183, 28, 28, 0.95); }
+        .toast.success { background: rgba(27, 94, 32, 0.95); }
+        .toast.warning { background: rgba(230, 81, 0, 0.95); }
+        @keyframes fadein { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🧩 SudokuAI</h1>
-        <p class="subtitle">LLM-powered Sudoku Evaluation Platform v{{ version }}</p>
+        <div class="header-bar">
+            <div>
+                <h1>🧩 SudokuAI</h1>
+                <p class="subtitle">LLM-powered Sudoku Evaluation Platform v{{ version }}</p>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <span id="themeIcon">🌙</span> <span id="themeLabel">Dark Mode</span>
+            </button>
+        </div>
         
         <div class="panel">
-            <h3>Game Controls</h3>
+            <h3>🎮 Game Controls</h3>
             <div class="controls">
                 <label>Difficulty:
                     <select id="difficulty">
@@ -162,14 +257,13 @@
                         <option value="master">Master</option>
                     </select>
                 </label>
-                <button onclick="generateGame()">New Game</button>
-                <button onclick="solveGame()">Solve</button>
-                <button onclick="validateGame()">Validate</button>
+                <button class="btn-primary" onclick="generateGame()">🎲 New Game</button>
+                <button class="btn-warning" onclick="solveGame()">💡 Solve</button>
             </div>
         </div>
         
         <div class="panel">
-            <h3>Sudoku Board</h3>
+            <h3>🧩 Sudoku Board</h3>
             <div class="progress" id="progress" style="display:none;">
                 <div class="progress-bar indeterminate" id="progressBar"></div>
             </div>
@@ -178,34 +272,37 @@
         
         <div class="two-col">
             <div class="panel">
-                <h3>LLM Configuration</h3>
-                <div class="controls" style="flex-direction: column; align-items: stretch;">
-                    <label>Provider:
-                        <select id="provider" onchange="refreshModels()">
-                            <option value="ollama">Ollama (Local)</option>
+                <h3>🤖 LLM Configuration</h3>
+                <div class="form-group">
+                    <label>Provider:</label>
+                    <select id="provider" onchange="refreshModels()">
+                        <option value="ollama">Ollama (Local)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Model:</label>
+                    <div style="display: flex; gap: 6px;">
+                        <select id="model" style="flex: 1;">
+                            <option value="">Loading...</option>
                         </select>
-                    </label>
-                    <label>Model:
-                        <div style="display: flex; gap: 5px;">
-                            <select id="model" style="flex: 1;">
-                                <option value="">Loading...</option>
-                            </select>
-                            <button onclick="refreshModels()" style="padding: 5px 10px;">🔄</button>
-                        </div>
-                    </label>
-                    <label>Mode:
-                        <select id="mode">
-                            <option value="step">Step-by-step</option>
-                            <option value="oneshot">One-shot</option>
-                        </select>
-                    </label>
-                    <button onclick="llmPlay()">Let LLM Play</button>
-                    <button onclick="llmEvaluate()">Evaluate Model</button>
+                        <button onclick="refreshModels()" style="padding: 6px 10px;">🔄</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Mode:</label>
+                    <select id="mode">
+                        <option value="step">Step-by-step</option>
+                        <option value="oneshot">One-shot</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn-success" onclick="llmPlay()">▶ Let LLM Play</button>
+                    <button class="btn-primary" onclick="llmEvaluate()">📊 Evaluate</button>
                 </div>
             </div>
             
             <div class="panel">
-                <h3>Statistics</h3>
+                <h3>📊 Statistics</h3>
                 <div class="stats">
                     <div class="stat-box">
                         <div class="stat-value" id="statAccuracy">--</div>
@@ -228,37 +325,69 @@
         </div>
         
         <div class="panel">
-            <h3>Activity Log</h3>
+            <h3>💭 AI Thoughts</h3>
+            <div class="thought-container" id="thoughtContainer"></div>
+        </div>
+        
+        <div class="panel">
+            <h3>📋 Activity Log</h3>
             <div class="log" id="log"></div>
         </div>
     </div>
     
     <script>
         let currentGame = null;
+        let isDarkTheme = localStorage.getItem('darkTheme') === 'true';
+        
+        if (isDarkTheme) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.getElementById('themeIcon').textContent = '☀️';
+            document.getElementById('themeLabel').textContent = 'Light Mode';
+        }
+        
+        function toggleTheme() {
+            isDarkTheme = !isDarkTheme;
+            localStorage.setItem('darkTheme', isDarkTheme);
+            document.documentElement.setAttribute('data-theme', isDarkTheme ? 'dark' : 'light');
+            document.getElementById('themeIcon').textContent = isDarkTheme ? '☀️' : '🌙';
+            document.getElementById('themeLabel').textContent = isDarkTheme ? 'Light Mode' : 'Dark Mode';
+        }
         
         function log(message, type = 'info') {
             const logEl = document.getElementById('log');
             const time = new Date().toLocaleTimeString();
-            const entry = document.createElement('div');
-            entry.className = `log-entry log-${type}`;
-            entry.textContent = `[${time}] ${message}`;
-            logEl.appendChild(entry);
+            logEl.innerHTML += `<span class="log-${type}">[${time}] ${message}</span>\n`;
             logEl.scrollTop = logEl.scrollHeight;
         }
         
-        function showProgress(show, text = 'Processing...') {
-            const progressEl = document.getElementById('progress');
-            progressEl.style.display = show ? 'block' : 'none';
-            if (show) {
-                document.getElementById('progressBar').style.width = '0%';
-            }
+        function showToast(message, type = 'info') {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
         }
         
-        function updateProgress(percent, text) {
+        function showProgress(show) {
+            document.getElementById('progress').style.display = show ? 'block' : 'none';
+        }
+        
+        function updateProgress(percent) {
             const bar = document.getElementById('progressBar');
             bar.classList.remove('indeterminate');
             bar.style.width = percent + '%';
-            if (text) log(text, 'info');
+        }
+        
+        function addThoughtBubble(text, step, type = 'thinking', errorDetail = '') {
+            const container = document.getElementById('thoughtContainer');
+            const bubble = document.createElement('div');
+            bubble.className = `thought-bubble ${type}`;
+            let header = type === 'valid' ? '✅ Valid Move' : type === 'invalid' ? '❌ Invalid Move' : '🧠 Thinking...';
+            bubble.innerHTML = `<div class="header">${header} (Step ${step})</div><div class="content">${text}${errorDetail ? `<br><br>⚠️ ${errorDetail}` : ''}</div>`;
+            container.insertBefore(bubble, container.firstChild);
+            while (container.children.length > 5) container.removeChild(container.lastChild);
         }
         
         function renderGrid(puzzle) {
@@ -271,8 +400,6 @@
                 const cell = document.createElement('div');
                 cell.className = 'sudoku-cell ' + (value ? 'fixed' : 'empty');
                 cell.textContent = value || '';
-                cell.dataset.row = row;
-                cell.dataset.col = col;
                 grid.appendChild(cell);
             }
         }
@@ -294,14 +421,14 @@
                         opt.textContent = m;
                         modelSelect.appendChild(opt);
                     });
-                    log(`Loaded ${result.data.models.length} models for ${provider}`, 'success');
+                    log(`Loaded ${result.data.models.length} models`, 'success');
                 } else {
-                    modelSelect.innerHTML = '<option value="">Enter model name</option>';
-                    log(`No models found for ${provider}`, 'info');
+                    modelSelect.innerHTML = '<option value="">No models</option>';
+                    log('No models found', 'warning');
                 }
             } catch (e) {
-                modelSelect.innerHTML = '<option value="">Error loading models</option>';
-                log(`Error loading models: ${e.message}`, 'error');
+                modelSelect.innerHTML = '<option value="">Error</option>';
+                log(`Error: ${e.message}`, 'error');
             }
         }
         
@@ -322,81 +449,65 @@
                     currentGame = result.data;
                     renderGrid(currentGame.puzzle);
                     document.getElementById('statDifficulty').textContent = difficulty;
-                    log(`New ${difficulty} puzzle generated (${currentGame.clues} clues)`, 'success');
+                    document.getElementById('thoughtContainer').innerHTML = '';
+                    log(`New ${difficulty} puzzle (${currentGame.clues} clues)`, 'success');
+                    showToast('Puzzle generated!', 'success');
                 } else {
                     log(`Error: ${result.error}`, 'error');
                 }
             } catch (e) {
-                log(`Request failed: ${e.message}`, 'error');
+                log(`Failed: ${e.message}`, 'error');
             } finally {
                 showProgress(false);
             }
         }
         
         async function solveGame() {
-            if (!currentGame) {
-                log('No game loaded. Generate a new game first.', 'error');
-                return;
-            }
+            if (!currentGame) { showToast('Generate a game first', 'warning'); return; }
             renderGrid(currentGame.solution);
-            log('Puzzle solved', 'success');
-        }
-        
-        async function validateGame() {
-            log('Validation not implemented for web interface yet', 'info');
+            log('Solution revealed', 'success');
         }
         
         async function llmPlay() {
-            if (!currentGame) {
-                log('No game loaded. Generate a new game first.', 'error');
-                return;
-            }
+            if (!currentGame) { showToast('Generate a game first', 'warning'); return; }
             
             const provider = document.getElementById('provider').value;
-            const modelSelect = document.getElementById('model');
-            const model = modelSelect.value || modelSelect.options[modelSelect.selectedIndex]?.text || 'gemma3:4b';
+            const model = document.getElementById('model').value;
             const mode = document.getElementById('mode').value;
-            const difficulty = currentGame.difficulty;
             
-            log(`Starting LLM play: ${model} (${mode} mode)...`);
+            if (!model) { showToast('Select a model', 'warning'); return; }
+            
+            log(`Starting LLM play: ${model}...`);
             showProgress(true);
-            log('🤖 Connecting to LLM...', 'info');
-            updateProgress(10, '📤 Sending puzzle to model...');
+            addThoughtBubble('Connecting to LLM...', 0, 'thinking');
             
             try {
                 const response = await fetch('/api/play', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({provider, model, mode, difficulty})
+                    body: JSON.stringify({provider, model, mode, difficulty: currentGame.difficulty})
                 });
                 const result = await response.json();
                 
                 if (result.success) {
                     const data = result.data;
-                    updateProgress(80, '📥 Processing response...');
+                    if (data.final_board) renderGrid(data.final_board);
                     
-                    if (data.final_board) {
-                        renderGrid(data.final_board);
-                    }
-                    document.getElementById('statAccuracy').textContent = 
-                        data.correct ? '100%' : '0%';
+                    document.getElementById('statAccuracy').textContent = data.correct ? '100%' : '0%';
                     document.getElementById('statMoves').textContent = data.total_moves;
-                    document.getElementById('statTime').textContent = 
-                        data.time_elapsed.toFixed(1) + 's';
+                    document.getElementById('statTime').textContent = data.time_elapsed.toFixed(1) + 's';
                     
-                    updateProgress(100, '✅ Complete');
-                    log(`Game ${data.correct ? 'solved correctly!' : 'incorrect'}`, 
-                        data.correct ? 'success' : 'error');
-                    log(`Moves: ${data.total_moves} (${data.valid_moves} valid, ${data.invalid_moves} invalid)`, 'info');
+                    const accuracy = (data.valid_moves / data.total_moves * 100).toFixed(0);
+                    addThoughtBubble(`Game ${data.correct ? 'completed!' : 'failed'}. Accuracy: ${accuracy}%`, data.total_moves, data.correct ? 'valid' : 'invalid');
                     
-                    if (data.moves && data.moves.length > 0) {
-                        log(`📝 Move reasoning sample: ${data.moves[0].reasoning?.substring(0, 100) || 'N/A'}...`, 'info');
-                    }
+                    log(`${data.correct ? '✅ Solved!' : '❌ Failed'} (${data.valid_moves}/${data.total_moves} valid)`, data.correct ? 'success' : 'error');
+                    showToast(data.correct ? 'Puzzle solved!' : `Failed (${accuracy}% accuracy)`, data.correct ? 'success' : 'error');
                 } else {
                     log(`Error: ${result.error}`, 'error');
+                    addThoughtBubble(result.error, 0, 'invalid');
                 }
             } catch (e) {
-                log(`Request failed: ${e.message}`, 'error');
+                log(`Failed: ${e.message}`, 'error');
             } finally {
                 showProgress(false);
             }
@@ -404,54 +515,43 @@
         
         async function llmEvaluate() {
             const provider = document.getElementById('provider').value;
-            const modelSelect = document.getElementById('model');
-            const model = modelSelect.value || modelSelect.options[modelSelect.selectedIndex]?.text || 'gemma3:4b';
+            const model = document.getElementById('model').value;
             const mode = document.getElementById('mode').value;
             
-            log(`Starting evaluation: ${model}...`);
+            if (!model) { showToast('Select a model', 'warning'); return; }
+            
+            log(`Evaluating ${model}...`);
             showProgress(true);
-            log('🚀 Initializing evaluation...', 'info');
             
             try {
                 const response = await fetch('/api/evaluate', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        provider, model, mode,
-                        difficulties: ['easy', 'medium'],
-                        games_per_difficulty: 2
-                    })
+                    body: JSON.stringify({provider, model, mode, difficulties: ['easy', 'medium'], games_per_difficulty: 2})
                 });
                 const result = await response.json();
                 
                 if (result.success) {
                     const data = result.data;
-                    document.getElementById('statAccuracy').textContent = 
-                        (data.overall_accuracy * 100).toFixed(0) + '%';
+                    document.getElementById('statAccuracy').textContent = (data.overall_accuracy * 100).toFixed(0) + '%';
                     document.getElementById('statMoves').textContent = data.total_games;
-                    document.getElementById('statTime').textContent = 
-                        data.total_time.toFixed(1) + 's';
+                    document.getElementById('statTime').textContent = data.total_time.toFixed(1) + 's';
                     
-                    log(`Evaluation complete: ${(data.overall_accuracy * 100).toFixed(1)}% accuracy`, 'success');
-                    log(`Games: ${data.total_games}, Correct: ${data.correct_games}`, 'info');
-                    
-                    for (const [diff, stats] of Object.entries(data.results_by_difficulty || {})) {
-                        log(`📊 ${diff}: ${(stats.accuracy * 100).toFixed(0)}% (${stats.correct}/${stats.total})`, 'info');
-                    }
+                    log(`Accuracy: ${(data.overall_accuracy * 100).toFixed(1)}%`, 'success');
+                    showToast(`Accuracy: ${(data.overall_accuracy * 100).toFixed(0)}%`, 'success');
                 } else {
                     log(`Error: ${result.error}`, 'error');
                 }
             } catch (e) {
-                log(`Request failed: ${e.message}`, 'error');
+                log(`Failed: ${e.message}`, 'error');
             } finally {
                 showProgress(false);
             }
         }
         
-        // Initialize
         renderGrid(Array(9).fill().map(() => Array(9).fill(0)));
         refreshModels();
-        log('SudokuAI ready. Generate a new game to begin.', 'success');
+        log('Ready. Generate a new game to begin.', 'info');
     </script>
 </body>
 </html>

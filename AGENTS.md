@@ -326,6 +326,11 @@ def create_client(config: LLMConfig) -> LLMClient:
 
 The GUI (`sudokuai/gui.py`) provides an interactive interface with:
 
+### Theme Support
+- Light and dark mode using PySide6 Fusion style
+- Theme preference persisted via QSettings
+- Toggle via View menu or checkbox in control panel
+
 ### Animated Step-by-Step Gameplay
 - `SudokuCell`: Individual cell with animated value placement
 - `SudokuGridWidget`: Full 9x9 grid with proper 3x3 box borders
@@ -355,6 +360,21 @@ When the LLM makes an invalid move:
 2. Error details are added to thought bubble
 3. Next prompt includes error feedback so LLM can learn
 4. `build_error_feedback_prompt()` provides detailed correction hints
+
+## Web Interface
+
+The web interface (`sudokuai/templates/index.html`) provides:
+
+### Theme Support
+- Light/dark mode toggle with localStorage persistence
+- CSS custom properties for theme variables
+- Smooth transitions between themes
+
+### Features
+- Dropdown model selection (not editable text input)
+- Real-time thought bubbles showing AI reasoning
+- Toast notifications for errors and success
+- Animated cell highlighting for moves
 
 ## Dependencies
 

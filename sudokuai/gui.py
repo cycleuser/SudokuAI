@@ -6,10 +6,12 @@ Features animated step-by-step gameplay with thought bubbles.
 from __future__ import annotations
 
 import sys
+import json
 import threading
 from datetime import datetime
 from typing import Optional, List
 from dataclasses import dataclass
+from pathlib import Path
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -17,11 +19,11 @@ from PySide6.QtWidgets import (
     QSpinBox, QGroupBox, QTableWidget, QTableWidgetItem,
     QTabWidget, QTextEdit, QStatusBar, QMenuBar, QMessageBox,
     QFileDialog, QProgressBar, QSplitter, QFrame, QScrollArea,
-    QSizePolicy, QGraphicsOpacityEffect, QStyle,
+    QSizePolicy, QGraphicsOpacityEffect, QStyle, QCheckBox,
 )
 from PySide6.QtCore import (
     Qt, QTimer, Signal, QPropertyAnimation, QPoint,
-    QEasingCurve, Property, QThread, QMutex, QRect,
+    QEasingCurve, Property, QThread, QMutex, QRect, QSettings,
 )
 from PySide6.QtGui import QFont, QAction, QColor, QPalette, QPainter, QBrush, QPen, QFontDatabase
 
@@ -61,37 +63,29 @@ class ThoughtBubble(QFrame):
 
     def _setup_ui(self):
         self.setObjectName("thoughtBubble")
-        self.setStyleSheet("""
-            #thoughtBubble {
-                background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #E3F2FD, stop:1 #BBDEFB);
-                border: 2px solid #1976D2;
-                border-radius: 16px;
-            }
-        """)
+        self.setFrameStyle(QFrame.StyledPanel | QFrame.Raised)
+        self.setLineWidth(1)
         
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(6)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(4)
         
         self.header = QLabel("🧠 AI Thinking...")
-        self.header.setStyleSheet("font-weight: bold; color: #0D47A1; border: none; background: transparent;")
-        self.header.setFont(QFont("SF Pro Display", 13, QFont.Bold))
+        self.header.setFont(QFont("", 12, QFont.Bold))
         layout.addWidget(self.header)
         
         self.content = QLabel("Waiting for move...")
         self.content.setWordWrap(True)
-        self.content.setStyleSheet("color: #37474F; border: none; background: transparent; line-height: 1.4;")
-        self.content.setFont(QFont("SF Pro Display", 11))
+        self.content.setFont(QFont("", 11))
         self.content.setMinimumHeight(40)
         self.content.setMaximumHeight(100)
         layout.addWidget(self.content)
         
         self.step_label = QLabel("Step: 0")
-        self.step_label.setStyleSheet("color: #78909C; font-size: 11px; border: none; background: transparent;")
+        self.step_label.setStyleSheet("color: gray; font-size: 10px;")
         layout.addWidget(self.step_label)
         
-        self.setMinimumWidth(300)
+        self.setMinimumWidth(280)
         self.setMaximumWidth(400)
 
     def set_thought(self, text: str, step: int = 0, is_valid: bool = True):
@@ -100,58 +94,23 @@ class ThoughtBubble(QFrame):
         self.step_label.setText(f"Step: {step}")
         
         if is_valid:
-            self.setStyleSheet("""
-                #thoughtBubble {
-                    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                        stop:0 #E8F5E9, stop:1 #C8E6C9);
-                    border: 2px solid #388E3C;
-                    border-radius: 16px;
-                }
-            """)
             self.header.setText("✅ Valid Move")
-            self.header.setStyleSheet("font-weight: bold; color: #1B5E20; border: none; background: transparent;")
+            self.header.setStyleSheet("color: green; font-weight: bold;")
         else:
-            self.setStyleSheet("""
-                #thoughtBubble {
-                    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                        stop:0 #FFEBEE, stop:1 #FFCDD2);
-                    border: 2px solid #D32F2F;
-                    border-radius: 16px;
-                }
-            """)
             self.header.setText("❌ Invalid Move")
-            self.header.setStyleSheet("font-weight: bold; color: #B71C1C; border: none; background: transparent;")
+            self.header.setStyleSheet("color: red; font-weight: bold;")
 
     def set_thinking(self):
-        self.setStyleSheet("""
-            #thoughtBubble {
-                background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #FFF8E1, stop:1 #FFECB3);
-                border: 2px solid #FFA000;
-                border-radius: 16px;
-            }
-        """)
         self.header.setText("🧠 Thinking...")
-        self.header.setStyleSheet("font-weight: bold; color: #FF6F00; border: none; background: transparent;")
+        self.header.setStyleSheet("color: orange; font-weight: bold;")
         self.content.setText("Analyzing the board...")
 
     def set_error(self, error_msg: str, step: int = 0):
         self._current_text = error_msg
         self.content.setText(error_msg)
         self.step_label.setText(f"Step: {step}")
-        self.setStyleSheet("""
-            #thoughtBubble {
-                background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #FFEBEE, stop:1 #FFCDD2);
-                border: 3px solid #D32F2F;
-                border-radius: 16px;
-            }
-        """)
-        self.header.setText("⚠️ Error / Parse Failed")
-        self.header.setStyleSheet("font-weight: bold; color: #B71C1C; border: none; background: transparent;")
-
-    def animate_shake(self):
-        pass
+        self.header.setText("⚠️ Error")
+        self.header.setStyleSheet("color: red; font-weight: bold;")
 
 
 class ToastWidget(QFrame):
@@ -165,62 +124,39 @@ class ToastWidget(QFrame):
         self.setAttribute(Qt.WA_ShowWithoutActivating)
 
     def _setup_ui(self):
-        self.setObjectName("toastWidget")
-        self.setStyleSheet("""
-            #toastWidget {
-                background-color: rgba(38, 50, 56, 230);
-                border-radius: 8px;
-            }
-        """)
-        
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(10)
+        layout.setContentsMargins(16, 10, 16, 10)
+        layout.setSpacing(8)
         
         self.icon_label = QLabel("⚠️")
-        self.icon_label.setStyleSheet("font-size: 18px; border: none; background: transparent;")
+        self.icon_label.setFont(QFont("", 16))
         layout.addWidget(self.icon_label)
         
         self.message_label = QLabel("Error message")
-        self.message_label.setStyleSheet("color: white; font-size: 13px; border: none; background: transparent;")
+        self.message_label.setStyleSheet("color: white; font-size: 13px;")
         self.message_label.setWordWrap(True)
         layout.addWidget(self.message_label)
         
-        self.setFixedHeight(50)
+        self.setFixedHeight(45)
         self.setMinimumWidth(200)
         self.setMaximumWidth(400)
 
     def show_error(self, message: str, duration: int = 3000):
         self.icon_label.setText("❌")
         self.message_label.setText(message)
-        self.setStyleSheet("""
-            #toastWidget {
-                background-color: rgba(183, 28, 28, 230);
-                border-radius: 8px;
-            }
-        """)
+        self.setStyleSheet("background-color: rgba(183, 28, 28, 230); border-radius: 8px;")
         self._show_toast(duration)
 
     def show_warning(self, message: str, duration: int = 3000):
         self.icon_label.setText("⚠️")
         self.message_label.setText(message)
-        self.setStyleSheet("""
-            #toastWidget {
-                background-color: rgba(230, 81, 0, 230);
-                border-radius: 8px;
-            }
-        """)
+        self.setStyleSheet("background-color: rgba(230, 81, 0, 230); border-radius: 8px;")
         self._show_toast(duration)
 
     def show_success(self, message: str, duration: int = 2000):
         self.icon_label.setText("✅")
         self.message_label.setText(message)
-        self.setStyleSheet("""
-            #toastWidget {
-                background-color: rgba(27, 94, 32, 230);
-                border-radius: 8px;
-            }
-        """)
+        self.setStyleSheet("background-color: rgba(27, 94, 32, 230); border-radius: 8px;")
         self._show_toast(duration)
 
     def _show_toast(self, duration: int):
@@ -257,76 +193,35 @@ class SudokuCell(QLineEdit):
         self.col = col
         self.setMaxLength(1)
         self.setAlignment(Qt.AlignCenter)
-        self.setFixedSize(52, 52)
+        self.setFixedSize(50, 50)
         self._is_fixed = False
-        self._opacity = 1.0
-        self._highlight_color = None
         self._original_style = ""
-        self._apply_base_style()
-
-    def _apply_base_style(self):
-        self.setStyleSheet("""
-            QLineEdit {
-                background-color: white;
-                color: #1A237E;
-                border: 1px solid #B0BEC5;
-                font-size: 22px;
-                font-weight: bold;
-                selection-background-color: #E3F2FD;
-            }
-            QLineEdit:focus {
-                border: 2px solid #2196F3;
-                background-color: #FAFAFA;
-            }
-        """)
+        font = QFont("", 20, QFont.Bold)
+        self.setFont(font)
 
     def set_fixed(self, value: int):
         self.setText(str(value) if value != 0 else "")
         self.setReadOnly(value != 0)
         self._is_fixed = value != 0
         if value != 0:
-            self.setStyleSheet("""
-                QLineEdit {
-                    background-color: #ECEFF1;
-                    color: #263238;
-                    border: 1px solid #B0BEC5;
-                    font-size: 22px;
-                    font-weight: bold;
-                }
-            """)
-        else:
-            self._apply_base_style()
+            self.setStyleSheet("background-color: palette(window); font-weight: bold;")
         self._original_style = self.styleSheet()
 
     def get_value(self) -> int:
         text = self.text().strip()
         return int(text) if text.isdigit() and 1 <= int(text) <= 9 else 0
 
-    def highlight_animated(self, color: str = "#4CAF50", duration: int = 400):
-        self._highlight_color = color
-        bg_color = "#C8E6C9" if color == "#4CAF50" else "#E3F2FD"
-        self.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: {bg_color};
-                color: {color};
-                border: 2px solid {color};
-                font-size: 22px;
-                font-weight: bold;
-            }}
-        """)
+    def highlight_valid(self, duration: int = 500):
+        self.setStyleSheet("background-color: #C8E6C9; color: #2E7D32; font-weight: bold; border: 2px solid #43A047;")
         QTimer.singleShot(duration, self._fade_to_normal)
 
     def highlight_error(self, duration: int = 800):
-        self.setStyleSheet("""
-            QLineEdit {
-                background-color: #FFCDD2;
-                color: #C62828;
-                border: 3px solid #E53935;
-                font-size: 22px;
-                font-weight: bold;
-            }
-        """)
+        self.setStyleSheet("background-color: #FFCDD2; color: #C62828; font-weight: bold; border: 2px solid #E53935;")
         self._shake_animation()
+        QTimer.singleShot(duration, self._fade_to_normal)
+
+    def highlight_conflict(self, duration: int = 600):
+        self.setStyleSheet("background-color: #FFF9C4; color: #F57F17; font-weight: bold; border: 2px solid #FFB300;")
         QTimer.singleShot(duration, self._fade_to_normal)
 
     def _shake_animation(self):
@@ -345,23 +240,15 @@ class SudokuCell(QLineEdit):
 
     def _fade_to_normal(self):
         if not self._is_fixed:
-            self.setStyleSheet("""
-                QLineEdit {
-                    background-color: #E3F2FD;
-                    color: #1565C0;
-                    border: 1px solid #64B5F6;
-                    font-size: 22px;
-                    font-weight: bold;
-                }
-            """)
-            QTimer.singleShot(300, self._apply_base_style)
+            self.setStyleSheet("background-color: #E3F2FD; color: #1565C0; font-weight: bold;")
+            QTimer.singleShot(300, lambda: self.setStyleSheet(""))
         else:
             self.setStyleSheet(self._original_style)
 
-    def set_value_animated(self, value: int, is_valid: bool = True, reasoning: str = ""):
+    def set_value_animated(self, value: int, is_valid: bool = True):
         self.setText(str(value))
         if is_valid:
-            self.highlight_animated("#43A047", 500)
+            self.highlight_valid(500)
         else:
             self.highlight_error(800)
 
@@ -380,12 +267,7 @@ class SudokuGridWidget(QWidget):
         layout.setSpacing(0)
         
         self.board_widget = QWidget()
-        self.board_widget.setFixedSize(480, 480)
-        self.board_widget.setStyleSheet("""
-            QWidget {
-                background-color: white;
-            }
-        """)
+        self.board_widget.setFixedSize(460, 460)
         
         main_layout = QVBoxLayout(self.board_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -398,36 +280,29 @@ class SudokuGridWidget(QWidget):
             row_layout.setSpacing(0)
             
             for box_col in range(3):
-                box_widget = QWidget()
-                box_widget.setStyleSheet(self._get_box_style(box_row, box_col))
-                box_layout = QGridLayout(box_widget)
-                box_layout.setContentsMargins(1, 1, 1, 1)
-                box_layout.setSpacing(0)
+                box_frame = QFrame()
+                box_frame.setFrameStyle(QFrame.Box | QFrame.Plain)
+                box_frame.setLineWidth(2)
+                
+                box_grid = QGridLayout(box_frame)
+                box_grid.setContentsMargins(1, 1, 1, 1)
+                box_grid.setSpacing(0)
                 
                 for r in range(3):
                     for c in range(3):
                         row = box_row * 3 + r
                         col = box_col * 3 + c
                         cell = self.cells[row][col]
-                        box_layout.addWidget(cell, r, c)
+                        box_grid.addWidget(cell, r, c)
                         cell.textChanged.connect(
                             lambda text, cr=row, cc=col: self._on_cell_changed(cr, cc, text)
                         )
                 
-                row_layout.addWidget(box_widget)
+                row_layout.addWidget(box_frame)
             
             main_layout.addWidget(row_widget)
         
         layout.addWidget(self.board_widget, alignment=Qt.AlignCenter)
-
-    def _get_box_style(self, box_row: int, box_col: int) -> str:
-        is_center = (box_row == 1) or (box_col == 1)
-        return """
-            QWidget {
-                border: 2px solid #37474F;
-                background-color: white;
-            }
-        """
 
     def _on_cell_changed(self, row: int, col: int, text: str):
         self.cell_clicked.emit(row, col)
@@ -442,7 +317,7 @@ class SudokuGridWidget(QWidget):
 
     def set_cell_animated(self, row: int, col: int, value: int, is_valid: bool = True, reasoning: str = ""):
         cell = self.cells[row][col]
-        cell.set_value_animated(value, is_valid, reasoning)
+        cell.set_value_animated(value, is_valid)
         if not is_valid:
             self._highlight_conflicts(row, col, value)
 
@@ -462,36 +337,15 @@ class SudokuGridWidget(QWidget):
                         conflicting_cells.append((r, c))
         
         for r, c in conflicting_cells:
-            self.cells[r][c].setStyleSheet("""
-                QLineEdit {
-                    background-color: #FFEB3B;
-                    color: #C62828;
-                    border: 2px solid #FF5722;
-                    font-size: 22px;
-                    font-weight: bold;
-                }
-            """)
-        
-        if conflicting_cells:
-            QTimer.singleShot(800, lambda: self._clear_conflict_highlights(conflicting_cells))
-
-    def _clear_conflict_highlights(self, cells):
-        for r, c in cells:
-            cell = self.cells[r][c]
-            if not cell._is_fixed:
-                cell._apply_base_style()
-            else:
-                cell.setStyleSheet(cell._original_style)
+            self.cells[r][c].highlight_conflict(800)
 
     def shake_board(self):
         original_pos = self.board_widget.pos()
         shake_steps = [
-            QPoint(original_pos.x() - 6, original_pos.y()),
-            QPoint(original_pos.x() + 6, original_pos.y()),
-            QPoint(original_pos.x() - 4, original_pos.y()),
-            QPoint(original_pos.x() + 4, original_pos.y()),
-            QPoint(original_pos.x() - 2, original_pos.y()),
-            QPoint(original_pos.x() + 2, original_pos.y()),
+            QPoint(original_pos.x() - 5, original_pos.y()),
+            QPoint(original_pos.x() + 5, original_pos.y()),
+            QPoint(original_pos.x() - 3, original_pos.y()),
+            QPoint(original_pos.x() + 3, original_pos.y()),
             original_pos,
         ]
         for i, pos in enumerate(shake_steps):
@@ -611,8 +465,6 @@ class StepPlayWorker(QThread):
                     else:
                         possible = self.board.get_possible_values(row, col)
                         if value not in possible:
-                            row_vals = [self.board.get(row, c) for c in range(9) if self.board.get(row, c) != 0]
-                            col_vals = [self.board.get(r, col) for r in range(9) if self.board.get(r, col) != 0]
                             error_detail = f"Conflict! {value} exists in row/col/box. Valid options: {sorted(possible)}"
                         else:
                             error_detail = "Invalid move (unknown reason)"
@@ -673,39 +525,18 @@ class ThoughtBubbleContainer(QWidget):
 
     def _setup_ui(self):
         self.layout = QVBoxLayout(self)
-        self.layout.setSpacing(12)
+        self.layout.setSpacing(10)
         self.layout.setContentsMargins(0, 0, 0, 0)
         
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.scroll.setStyleSheet("""
-            QScrollArea { 
-                border: none; 
-                background: transparent; 
-            }
-            QScrollBar:vertical {
-                border: none;
-                background: #F5F5F5;
-                width: 8px;
-                border-radius: 4px;
-            }
-            QScrollBar::handle:vertical {
-                background: #BDBDBD;
-                border-radius: 4px;
-                min-height: 20px;
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0px;
-            }
-        """)
         
         self.scroll_content = QWidget()
-        self.scroll_content.setStyleSheet("background: transparent;")
         self.scroll_layout = QVBoxLayout(self.scroll_content)
-        self.scroll_layout.setSpacing(10)
-        self.scroll_layout.setContentsMargins(5, 5, 8, 5)
+        self.scroll_layout.setSpacing(8)
+        self.scroll_layout.setContentsMargins(5, 5, 5, 5)
         self.scroll_layout.addStretch()
         
         self.scroll.setWidget(self.scroll_content)
@@ -770,89 +601,76 @@ class MainWindow(QMainWindow):
         self._play_worker: Optional[StepPlayWorker] = None
         self._is_playing = False
         self._speed_ms = 1000
+        self._is_dark_mode = False
+        self._settings = QSettings("SudokuAI", "SudokuAI")
+        self._load_theme_preference()
         self._setup_ui()
         self._load_providers()
+        self._apply_initial_theme()
+
+    def _load_theme_preference(self):
+        self._is_dark_mode = self._settings.value("dark_mode", False, type=bool)
+
+    def _save_theme_preference(self):
+        self._settings.setValue("dark_mode", self._is_dark_mode)
+
+    def _apply_initial_theme(self):
+        if self._is_dark_mode:
+            self._apply_dark_mode()
+
+    def toggle_theme(self):
+        self._is_dark_mode = not self._is_dark_mode
+        self._save_theme_preference()
+        
+        if self._is_dark_mode:
+            self._apply_dark_mode()
+        else:
+            self._apply_light_mode()
+        
+        self.theme_checkbox.setChecked(self._is_dark_mode)
+        self.dark_theme_action.setChecked(self._is_dark_mode)
+
+    def _apply_dark_mode(self):
+        app = QApplication.instance()
+        app.setStyle("Fusion")
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(53, 53, 53))
+        palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
+        palette.setColor(QPalette.Base, QColor(35, 35, 35))
+        palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+        palette.setColor(QPalette.ToolTipBase, QColor(25, 25, 25))
+        palette.setColor(QPalette.ToolTipText, QColor(255, 255, 255))
+        palette.setColor(QPalette.Text, QColor(255, 255, 255))
+        palette.setColor(QPalette.Button, QColor(53, 53, 53))
+        palette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
+        palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
+        palette.setColor(QPalette.Link, QColor(42, 130, 218))
+        palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+        palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
+        app.setPalette(palette)
+
+    def _apply_light_mode(self):
+        app = QApplication.instance()
+        app.setStyle("Fusion")
+        app.setPalette(QPalette())
 
     def _setup_ui(self):
         self.setWindowTitle(f"SudokuAI v{__version__}")
-        self.setMinimumSize(1250, 800)
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #FAFAFA;
-            }
-            QGroupBox {
-                font-weight: bold;
-                font-size: 13px;
-                border: 1px solid #E0E0E0;
-                border-radius: 10px;
-                margin-top: 12px;
-                padding-top: 12px;
-                background-color: white;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 8px;
-                color: #37474F;
-            }
-            QPushButton {
-                padding: 10px 20px;
-                border-radius: 8px;
-                background-color: #2196F3;
-                color: white;
-                border: none;
-                font-weight: bold;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #1976D2;
-            }
-            QPushButton:pressed {
-                background-color: #0D47A1;
-            }
-            QPushButton:disabled {
-                background-color: #CFD8DC;
-                color: #90A4AE;
-            }
-            QComboBox {
-                padding: 8px 12px;
-                border: 1px solid #CFD8DC;
-                border-radius: 6px;
-                background: white;
-                font-size: 12px;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 20px;
-            }
-            QComboBox::down-arrow {
-                width: 12px;
-                height: 12px;
-            }
-            QSpinBox {
-                padding: 6px 10px;
-                border: 1px solid #CFD8DC;
-                border-radius: 6px;
-                background: white;
-            }
-            QLabel {
-                color: #37474F;
-            }
-        """)
+        self.setMinimumSize(1150, 750)
 
         self._create_menu_bar()
         
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
-        main_layout.setSpacing(20)
-        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(15)
+        main_layout.setContentsMargins(15, 15, 15, 15)
 
         left_panel = QWidget()
-        left_panel.setMaximumWidth(300)
-        left_panel.setMinimumWidth(260)
+        left_panel.setMaximumWidth(280)
+        left_panel.setMinimumWidth(240)
         left_layout = QVBoxLayout(left_panel)
-        left_layout.setSpacing(15)
+        left_layout.setSpacing(12)
 
         self._create_control_panel(left_layout)
         self._create_llm_panel(left_layout)
@@ -861,15 +679,15 @@ class MainWindow(QMainWindow):
 
         center_panel = QWidget()
         center_layout = QVBoxLayout(center_panel)
-        center_layout.setSpacing(20)
+        center_layout.setSpacing(15)
         center_layout.setContentsMargins(0, 0, 0, 0)
         self._create_sudoku_panel(center_layout)
 
         right_panel = QWidget()
-        right_panel.setMaximumWidth(380)
-        right_panel.setMinimumWidth(320)
+        right_panel.setMaximumWidth(340)
+        right_panel.setMinimumWidth(280)
         right_layout = QVBoxLayout(right_panel)
-        right_layout.setSpacing(15)
+        right_layout.setSpacing(12)
         self._create_thought_panel(right_layout)
         self._create_log_panel(right_layout)
 
@@ -877,44 +695,17 @@ class MainWindow(QMainWindow):
         splitter.addWidget(left_panel)
         splitter.addWidget(center_panel)
         splitter.addWidget(right_panel)
-        splitter.setSizes([300, 500, 380])
-        splitter.setHandleWidth(1)
-        splitter.setStyleSheet("QSplitter::handle { background: #E0E0E0; }")
+        splitter.setSizes([280, 480, 340])
         main_layout.addWidget(splitter)
 
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.setStyleSheet("""
-            QStatusBar {
-                background-color: #263238;
-                color: #ECEFF1;
-                font-size: 12px;
-                padding: 4px 10px;
-            }
-        """)
         self.status_bar.showMessage("Ready - Generate a new game to start")
         
         self.toast = ToastWidget(self)
 
     def _create_menu_bar(self):
         menubar = self.menuBar()
-        menubar.setStyleSheet("""
-            QMenuBar {
-                background-color: #37474F;
-                color: white;
-                padding: 4px 8px;
-            }
-            QMenuBar::item:selected {
-                background-color: #546E7A;
-            }
-            QMenu {
-                background-color: white;
-                border: 1px solid #E0E0E0;
-            }
-            QMenu::item:selected {
-                background-color: #E3F2FD;
-            }
-        """)
 
         file_menu = menubar.addMenu("&File")
         
@@ -957,15 +748,22 @@ class MainWindow(QMainWindow):
         evaluate_action.triggered.connect(self.llm_evaluate)
         llm_menu.addAction(evaluate_action)
 
+        view_menu = menubar.addMenu("&View")
+        
+        self.dark_theme_action = QAction("🌙 Dark Mode", self, checkable=True)
+        self.dark_theme_action.setChecked(self._is_dark_mode)
+        self.dark_theme_action.triggered.connect(self.toggle_theme)
+        view_menu.addAction(self.dark_theme_action)
+
         help_menu = menubar.addMenu("&Help")
         about_action = QAction("&About", self)
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
 
     def _create_control_panel(self, parent_layout):
-        group = QGroupBox("🎮 Game Controls")
+        group = QGroupBox("Game Controls")
         layout = QVBoxLayout(group)
-        layout.setSpacing(12)
+        layout.setSpacing(10)
 
         diff_layout = QHBoxLayout()
         diff_layout.addWidget(QLabel("Difficulty:"))
@@ -980,24 +778,24 @@ class MainWindow(QMainWindow):
         btn_layout.addWidget(self.new_btn)
 
         self.solve_btn = QPushButton("💡 Solve")
-        self.solve_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #FF9800;
-            }
-            QPushButton:hover {
-                background-color: #F57C00;
-            }
-        """)
         self.solve_btn.clicked.connect(self.solve_current)
         btn_layout.addWidget(self.solve_btn)
         layout.addLayout(btn_layout)
+        
+        theme_layout = QHBoxLayout()
+        self.theme_checkbox = QCheckBox("🌙 Dark Mode")
+        self.theme_checkbox.setChecked(self._is_dark_mode)
+        self.theme_checkbox.stateChanged.connect(lambda: self.toggle_theme() if self.theme_checkbox.isChecked() != self._is_dark_mode else None)
+        theme_layout.addWidget(self.theme_checkbox)
+        theme_layout.addStretch()
+        layout.addLayout(theme_layout)
 
         parent_layout.addWidget(group)
 
     def _create_llm_panel(self, parent_layout):
-        group = QGroupBox("🤖 LLM Configuration")
+        group = QGroupBox("LLM Configuration")
         layout = QVBoxLayout(group)
-        layout.setSpacing(12)
+        layout.setSpacing(10)
 
         provider_layout = QHBoxLayout()
         provider_layout.addWidget(QLabel("Provider:"))
@@ -1009,11 +807,10 @@ class MainWindow(QMainWindow):
         model_layout = QHBoxLayout()
         model_layout.addWidget(QLabel("Model:"))
         self.model_combo = QComboBox()
-        self.model_combo.setEditable(True)
         model_layout.addWidget(self.model_combo)
         
         refresh_btn = QPushButton("🔄")
-        refresh_btn.setFixedWidth(40)
+        refresh_btn.setFixedWidth(35)
         refresh_btn.setToolTip("Refresh model list")
         refresh_btn.clicked.connect(self._refresh_models)
         model_layout.addWidget(refresh_btn)
@@ -1026,24 +823,16 @@ class MainWindow(QMainWindow):
         mode_layout.addWidget(self.mode_combo)
         layout.addLayout(mode_layout)
 
-        test_btn = QPushButton("🔌 Test Connection")
-        test_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #607D8B;
-            }
-            QPushButton:hover {
-                background-color: #546E7A;
-            }
-        """)
-        test_btn.clicked.connect(self.test_connection)
-        layout.addWidget(test_btn)
+        self.test_btn = QPushButton("🔌 Test Connection")
+        self.test_btn.clicked.connect(self.test_connection)
+        layout.addWidget(self.test_btn)
 
         parent_layout.addWidget(group)
 
     def _create_playback_panel(self, parent_layout):
-        group = QGroupBox("⏯ Playback Controls")
+        group = QGroupBox("Playback Controls")
         layout = QVBoxLayout(group)
-        layout.setSpacing(12)
+        layout.setSpacing(10)
 
         speed_layout = QHBoxLayout()
         speed_layout.addWidget(QLabel("Speed:"))
@@ -1058,67 +847,30 @@ class MainWindow(QMainWindow):
 
         btn_layout = QHBoxLayout()
         self.play_btn = QPushButton("▶ Play")
-        self.play_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-            }
-            QPushButton:hover {
-                background-color: #388E3C;
-            }
-        """)
         self.play_btn.clicked.connect(self.llm_play)
         btn_layout.addWidget(self.play_btn)
 
         self.pause_btn = QPushButton("⏸ Pause")
-        self.pause_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #FF9800;
-            }
-            QPushButton:hover {
-                background-color: #F57C00;
-            }
-        """)
         self.pause_btn.clicked.connect(self.toggle_pause)
         self.pause_btn.setEnabled(False)
         btn_layout.addWidget(self.pause_btn)
         layout.addLayout(btn_layout)
 
         self.stop_btn = QPushButton("⏹ Stop")
-        self.stop_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #F44336;
-            }
-            QPushButton:hover {
-                background-color: #D32F2F;
-            }
-        """)
         self.stop_btn.clicked.connect(self.stop_play)
         self.stop_btn.setEnabled(False)
         layout.addWidget(self.stop_btn)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        self.progress_bar.setStyleSheet("""
-            QProgressBar {
-                border: none;
-                border-radius: 4px;
-                background-color: #E0E0E0;
-                text-align: center;
-                font-weight: bold;
-            }
-            QProgressBar::chunk {
-                background-color: #4CAF50;
-                border-radius: 4px;
-            }
-        """)
         layout.addWidget(self.progress_bar)
 
         parent_layout.addWidget(group)
 
     def _create_sudoku_panel(self, parent_layout):
-        group = QGroupBox("🧩 Sudoku Board")
+        group = QGroupBox("Sudoku Board")
         layout = QVBoxLayout(group)
-        layout.setContentsMargins(30, 25, 30, 25)
+        layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
 
         self.sudoku_grid = SudokuGridWidget()
@@ -1127,9 +879,9 @@ class MainWindow(QMainWindow):
         parent_layout.addWidget(group)
 
     def _create_thought_panel(self, parent_layout):
-        group = QGroupBox("💭 AI Thoughts")
+        group = QGroupBox("AI Thoughts")
         layout = QVBoxLayout(group)
-        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setContentsMargins(10, 10, 10, 10)
 
         self.thought_container = ThoughtBubbleContainer()
         layout.addWidget(self.thought_container)
@@ -1137,24 +889,13 @@ class MainWindow(QMainWindow):
         parent_layout.addWidget(group)
 
     def _create_log_panel(self, parent_layout):
-        group = QGroupBox("📋 Activity Log")
+        group = QGroupBox("Activity Log")
         layout = QVBoxLayout(group)
-        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setContentsMargins(10, 10, 10, 10)
 
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setMaximumHeight(140)
-        self.log_text.setStyleSheet("""
-            QTextEdit {
-                background-color: #263238;
-                color: #B0BEC5;
-                border: none;
-                border-radius: 6px;
-                font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-                font-size: 11px;
-                padding: 8px;
-            }
-        """)
+        self.log_text.setMaximumHeight(130)
         layout.addWidget(self.log_text)
 
         parent_layout.addWidget(group)
@@ -1186,14 +927,14 @@ class MainWindow(QMainWindow):
                 self.model_combo.addItems(models)
                 self.log(f"✓ Loaded {len(models)} models for {provider}")
             else:
-                self.model_combo.setPlaceholderText("Enter model name")
+                self.model_combo.addItem("No models available")
                 self.log(f"⚠ No models found for {provider}")
         else:
             self.log(f"✗ Error loading models: {result.error}")
 
     def log(self, message: str):
         timestamp = datetime.now().strftime("%H:%M:%S")
-        self.log_text.append(f"<span style='color: #78909C;'>[{timestamp}]</span> {message}")
+        self.log_text.append(f"[{timestamp}] {message}")
 
     def new_game(self):
         difficulty = self.difficulty_combo.currentText()
@@ -1248,7 +989,7 @@ class MainWindow(QMainWindow):
             return
         
         provider = self.provider_combo.currentText()
-        model = self.model_combo.currentText() or "gemma3:4b"
+        model = self.model_combo.currentText()
         mode = self.mode_combo.currentText()
 
         if mode == "oneshot":
@@ -1259,19 +1000,22 @@ class MainWindow(QMainWindow):
     def _play_step_by_step(self, provider: str, model: str):
         from .core import DEFAULT_PROVIDERS
         
+        if not model:
+            QMessageBox.warning(self, "Warning", "Please select a model first.")
+            return
+        
         config = DEFAULT_PROVIDERS.get(provider)
         if not config:
             self.log(f"✗ Unknown provider: {provider}")
             return
         
-        if model:
-            config = LLMConfig(
-                name=config.name,
-                provider=config.provider,
-                api_base=config.api_base,
-                model=model,
-                api_key=config.api_key,
-            )
+        config = LLMConfig(
+            name=config.name,
+            provider=config.provider,
+            api_base=config.api_base,
+            model=model,
+            api_key=config.api_key,
+        )
         
         self._is_playing = True
         self._update_play_buttons(True)
@@ -1295,6 +1039,10 @@ class MainWindow(QMainWindow):
         self._play_worker.start()
 
     def _play_oneshot(self, provider: str, model: str):
+        if not model:
+            QMessageBox.warning(self, "Warning", "Please select a model first.")
+            return
+        
         self.log(f"▶ Starting one-shot play: {model}")
         self.status_bar.showMessage("LLM thinking...")
         self.progress_bar.setVisible(True)
@@ -1334,20 +1082,20 @@ class MainWindow(QMainWindow):
         )
         
         if move.is_valid:
-            self.log(f"  <span style='color: #4CAF50;'>✓</span> Step {move.step}: ({move.row},{move.col})={move.value}")
+            self.log(f"  ✓ Step {move.step}: ({move.row},{move.col})={move.value}")
         else:
-            self.log(f"  <span style='color: #F44336;'>✗</span> Step {move.step}: ({move.row},{move.col})={move.value} - <span style='color: #FF5722;'>{move.error_detail}</span>")
+            self.log(f"  ✗ Step {move.step}: ({move.row},{move.col})={move.value} - {move.error_detail}")
             self.sudoku_grid.shake_board()
             self.toast.show_error(f"Invalid: {move.error_detail[:40]}...", 2500)
 
     def _on_parse_error(self, error_msg: str, step: int):
         self.thought_container.add_error(error_msg, step)
-        self.log(f"  <span style='color: #FF9800;'>⚠️</span> Step {step}: Parse error - {error_msg[:80]}...")
+        self.log(f"  ⚠️ Step {step}: Parse error - {error_msg[:60]}...")
         self.toast.show_warning(f"Parse error at step {step}", 2500)
 
     def _on_error(self, error: str, step: int):
         self.thought_container.add_error(error, step)
-        self.log(f"  <span style='color: #F44336;'>✗</span> Step {step}: Error - {error}")
+        self.log(f"  ✗ Step {step}: Error - {error}")
         self.toast.show_error(f"Error: {error[:40]}...", 3000)
 
     def _on_play_finished(self, is_correct: bool, total_moves: int, valid_moves: int):
@@ -1404,8 +1152,12 @@ class MainWindow(QMainWindow):
 
     def llm_evaluate(self):
         provider = self.provider_combo.currentText()
-        model = self.model_combo.currentText() or "gemma3:4b"
+        model = self.model_combo.currentText()
         mode = self.mode_combo.currentText()
+        
+        if not model:
+            QMessageBox.warning(self, "Warning", "Please select a model first.")
+            return
 
         self.log(f"📊 Starting evaluation: {model}")
         self.status_bar.showMessage("Evaluating...")
@@ -1465,7 +1217,7 @@ class MainWindow(QMainWindow):
             f"<li>Thought bubbles showing AI reasoning</li>"
             f"<li>5 difficulty levels</li>"
             f"<li>Playback controls (pause, resume, speed)</li>"
-            f"<li>CLI, GUI, and Web interfaces</li>"
+            f"<li>Light/Dark theme support</li>"
             f"</ul>"
             f"<p>Licensed under <b>GPLv3</b></p>",
         )
@@ -1480,22 +1232,7 @@ class MainWindow(QMainWindow):
 def run_gui():
     app = QApplication(sys.argv)
     app.setApplicationName("SudokuAI")
-    
     app.setStyle("Fusion")
-    
-    palette = QPalette()
-    palette.setColor(QPalette.Window, QColor(250, 250, 250))
-    palette.setColor(QPalette.WindowText, QColor(55, 71, 79))
-    palette.setColor(QPalette.Base, QColor(255, 255, 255))
-    palette.setColor(QPalette.AlternateBase, QColor(245, 245, 245))
-    palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
-    palette.setColor(QPalette.ToolTipText, QColor(55, 71, 79))
-    palette.setColor(QPalette.Text, QColor(55, 71, 79))
-    palette.setColor(QPalette.Button, QColor(255, 255, 255))
-    palette.setColor(QPalette.ButtonText, QColor(55, 71, 79))
-    palette.setColor(QPalette.Highlight, QColor(33, 150, 243))
-    palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
-    app.setPalette(palette)
     
     window = MainWindow()
     window.show()
