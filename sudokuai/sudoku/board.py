@@ -37,8 +37,12 @@ class SudokuBoard:
         return self._grid[row][col] == self.EMPTY
 
     def get_empty_cells(self) -> list[tuple[int, int]]:
-        return [(r, c) for r in range(self.SIZE) for c in range(self.SIZE) 
-                if self._grid[r][c] == self.EMPTY]
+        return [
+            (r, c)
+            for r in range(self.SIZE)
+            for c in range(self.SIZE)
+            if self._grid[r][c] == self.EMPTY
+        ]
 
     def get_possible_values(self, row: int, col: int) -> set[int]:
         if not self.is_empty(row, col):
@@ -63,14 +67,20 @@ class SudokuBoard:
         return set(range(1, 10)) - used
 
     def count_clues(self) -> int:
-        return sum(1 for r in range(self.SIZE) for c in range(self.SIZE) 
-                   if self._grid[r][c] != self.EMPTY)
+        return sum(
+            1
+            for r in range(self.SIZE)
+            for c in range(self.SIZE)
+            if self._grid[r][c] != self.EMPTY
+        )
 
     def copy(self) -> "SudokuBoard":
         return SudokuBoard(self._grid)
 
     def to_string(self) -> str:
-        return "".join(str(self._grid[r][c]) for r in range(self.SIZE) for c in range(self.SIZE))
+        return "".join(
+            str(self._grid[r][c]) for r in range(self.SIZE) for c in range(self.SIZE)
+        )
 
     @classmethod
     def from_string(cls, s: str) -> "SudokuBoard":

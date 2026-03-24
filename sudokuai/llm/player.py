@@ -16,7 +16,13 @@ from .recorder import GameRecorder
 
 def debug_print(msg: str, level: str = "INFO"):
     timestamp = time.strftime("%H:%M:%S")
-    prefix = {"INFO": "🔍", "DEBUG": "🐛", "SUCCESS": "✅", "ERROR": "❌", "THINK": "🧠"}
+    prefix = {
+        "INFO": "🔍",
+        "DEBUG": "🐛",
+        "SUCCESS": "✅",
+        "ERROR": "❌",
+        "THINK": "🧠",
+    }
     print(f"{prefix.get(level, '📌')} [{timestamp}] {msg}")
 
 
@@ -26,14 +32,23 @@ class LLMPlayer:
     MAX_MOVES = 500
     MAX_RETRIES = 3
 
-    def __init__(self, config: LLMConfig, recorder: Optional[GameRecorder] = None, verbose: bool = True):
+    def __init__(
+        self,
+        config: LLMConfig,
+        recorder: Optional[GameRecorder] = None,
+        verbose: bool = True,
+    ):
         self.config = config
         self.client = LLMClient(config)
         self.recorder = recorder or GameRecorder()
         self.verbose = verbose
 
-    def play(self, game: SudokuGame, mode: PlayMode = PlayMode.STEP_BY_STEP,
-             max_moves: int = None) -> PlayResult:
+    def play(
+        self,
+        game: SudokuGame,
+        mode: PlayMode = PlayMode.STEP_BY_STEP,
+        max_moves: int = None,
+    ) -> PlayResult:
         start_time = time.time()
         max_moves = max_moves or self.MAX_MOVES
 
@@ -52,7 +67,7 @@ class LLMPlayer:
 
         result.time_elapsed = time.time() - start_time
         self.recorder.save_play_result(result)
-        
+
         if self.verbose:
             print("=" * 50)
             debug_print(f"Game completed!", "SUCCESS" if result.correct else "ERROR")
@@ -61,7 +76,7 @@ class LLMPlayer:
             debug_print(f"Valid moves: {result.valid_moves}", "INFO")
             debug_print(f"Invalid moves: {result.invalid_moves}", "INFO")
             debug_print(f"Time: {result.time_elapsed:.2f}s", "INFO")
-        
+
         return result
 
     def _play_step_by_step(self, game: SudokuGame, max_moves: int) -> PlayResult:
@@ -84,27 +99,36 @@ class LLMPlayer:
 
             current_empty = len(empty_cells)
             progress = ((empty_count - current_empty) / empty_count) * 100
-            
+
             if self.verbose and step % 5 == 0:
-                print(f"\r📊 Progress: {progress:.1f}% ({empty_count - current_empty}/{empty_count} cells)", end="", flush=True)
+                print(
+                    f"\r📊 Progress: {progress:.1f}% ({empty_count - current_empty}/{empty_count} cells)",
+                    end="",
+                    flush=True,
+                )
 
             prompt = build_step_prompt(board.grid, step + 1, moves)
-            
+
             if self.verbose and step == 0:
                 debug_print("Sending prompt to LLM...", "THINK")
 
             try:
                 response = self.client.chat(prompt)
-                
+
                 if self.verbose:
                     print()  # Clear progress line
-                    debug_print(f"Step {step + 1}: Received response ({len(response.content)} chars)", "DEBUG")
+                    debug_print(
+                        f"Step {step + 1}: Received response ({len(response.content)} chars)",
+                        "DEBUG",
+                    )
 
                 parsed = parse_move(response.content)
 
                 if not parsed:
                     if self.verbose:
-                        debug_print(f"Could not parse move, trying valid move...", "DEBUG")
+                        debug_print(
+                            f"Could not parse move, trying valid move...", "DEBUG"
+                        )
                     board_copy = board.copy()
                     self._try_random_valid_move(board, solution)
                     step += 1
@@ -114,16 +138,23 @@ class LLMPlayer:
 
                 if not (0 <= row < 9 and 0 <= col < 9 and 1 <= value <= 9):
                     if self.verbose:
-                        debug_print(f"Invalid coordinates: ({row},{col})={value}", "ERROR")
+                        debug_print(
+                            f"Invalid coordinates: ({row},{col})={value}", "ERROR"
+                        )
                     continue
 
                 is_valid = SudokuValidator.is_valid_move(board, row, col, value)
 
                 if self.verbose:
                     status = "✓ VALID" if is_valid else "✗ INVALID"
-                    debug_print(f"Move: ({row},{col}) = {value} [{status}]", "SUCCESS" if is_valid else "ERROR")
+                    debug_print(
+                        f"Move: ({row},{col}) = {value} [{status}]",
+                        "SUCCESS" if is_valid else "ERROR",
+                    )
                     if reasoning:
-                        print(f"   💭 Reasoning: {reasoning[:100]}{'...' if len(reasoning) > 100 else ''}")
+                        print(
+                            f"   💭 Reasoning: {reasoning[:100]}{'...' if len(reasoning) > 100 else ''}"
+                        )
 
                 move = self.recorder.log_move(
                     game_id=game.id,
@@ -170,18 +201,20 @@ class LLMPlayer:
 
     def _play_one_shot(self, game: SudokuGame) -> PlayResult:
         prompt = build_oneshot_prompt(game.puzzle)
-        
+
         if self.verbose:
             debug_print("One-shot mode: Sending full puzzle to LLM...", "THINK")
             debug_print(f"Puzzle has {game.clues} clues", "INFO")
-        
+
         try:
             response = self.client.chat(prompt, max_tokens=4096)
-            
+
             if self.verbose:
-                debug_print(f"Received response ({len(response.content)} chars)", "DEBUG")
+                debug_print(
+                    f"Received response ({len(response.content)} chars)", "DEBUG"
+                )
                 debug_print("Parsing solution...", "THINK")
-            
+
             solution_grid = parse_solution(response.content)
 
             if solution_grid and len(solution_grid) == 9:
@@ -189,8 +222,14 @@ class LLMPlayer:
                 is_valid = SudokuValidator.is_valid_solution(solution_grid)
 
                 if self.verbose:
-                    debug_print(f"Solution valid: {is_valid}", "SUCCESS" if is_valid else "ERROR")
-                    debug_print(f"Solution correct: {is_correct}", "SUCCESS" if is_correct else "ERROR")
+                    debug_print(
+                        f"Solution valid: {is_valid}",
+                        "SUCCESS" if is_valid else "ERROR",
+                    )
+                    debug_print(
+                        f"Solution correct: {is_correct}",
+                        "SUCCESS" if is_correct else "ERROR",
+                    )
 
                 move = self.recorder.log_move(
                     game_id=game.id,
@@ -222,7 +261,7 @@ class LLMPlayer:
 
         if self.verbose:
             debug_print("One-shot failed", "ERROR")
-        
+
         return PlayResult(
             game_id=game.id,
             model_name=self.config.model,
@@ -242,7 +281,7 @@ class LLMPlayer:
         empty = board.get_empty_cells()
         if not empty:
             return False
-        
+
         for row, col in empty:
             correct = solution.get(row, col)
             if SudokuValidator.is_valid_move(board, row, col, correct):
@@ -251,8 +290,11 @@ class LLMPlayer:
         return False
 
 
-def play_game(game: SudokuGame, config: LLMConfig, 
-              mode: PlayMode = PlayMode.STEP_BY_STEP,
-              verbose: bool = True) -> PlayResult:
+def play_game(
+    game: SudokuGame,
+    config: LLMConfig,
+    mode: PlayMode = PlayMode.STEP_BY_STEP,
+    verbose: bool = True,
+) -> PlayResult:
     player = LLMPlayer(config, verbose=verbose)
     return player.play(game, mode)

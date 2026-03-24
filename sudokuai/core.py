@@ -27,6 +27,7 @@ class PlayMode(Enum):
 @dataclass
 class ToolResult:
     """Standard result type for all API functions."""
+
     success: bool
     data: Any = None
     error: Optional[str] = None
@@ -47,6 +48,7 @@ class ToolResult:
 @dataclass
 class SudokuGame:
     """Represents a Sudoku game instance."""
+
     id: str
     puzzle: list[list[int]]
     solution: list[list[int]]
@@ -72,13 +74,16 @@ class SudokuGame:
             solution=data["solution"],
             difficulty=data["difficulty"],
             clues=data["clues"],
-            created_at=datetime.fromisoformat(data.get("created_at", datetime.now().isoformat())),
+            created_at=datetime.fromisoformat(
+                data.get("created_at", datetime.now().isoformat())
+            ),
         )
 
 
 @dataclass
 class GameMove:
     """Represents a single move in a Sudoku game."""
+
     game_id: str
     step: int
     row: int
@@ -104,6 +109,7 @@ class GameMove:
 @dataclass
 class LLMConfig:
     """Configuration for an LLM provider."""
+
     name: str
     provider: str
     api_base: str
@@ -139,6 +145,7 @@ class LLMConfig:
 @dataclass
 class PlayResult:
     """Result of an LLM playing a Sudoku game."""
+
     game_id: str
     model_name: str
     mode: str
@@ -172,6 +179,7 @@ class PlayResult:
 @dataclass
 class EvaluationResult:
     """Result of evaluating an LLM on multiple Sudoku games."""
+
     model_name: str
     provider: str
     total_games: int
@@ -213,39 +221,11 @@ DEFAULT_PROVIDERS = {
         model="gpt-4o-mini",
         api_key="",
     ),
-    "aliyun": LLMConfig(
-        name="aliyun",
-        provider="aliyun",
-        api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
-        model="qwen-turbo",
-        api_key="",
-    ),
-    "minimax": LLMConfig(
-        name="minimax",
-        provider="minimax",
-        api_base="https://api.minimax.chat/v1",
-        model="abab6.5-chat",
-        api_key="",
-    ),
-    "deepseek": LLMConfig(
-        name="deepseek",
-        provider="deepseek",
-        api_base="https://api.deepseek.com/v1",
-        model="deepseek-chat",
-        api_key="",
-    ),
-    "moonshot": LLMConfig(
-        name="moonshot",
-        provider="moonshot",
-        api_base="https://api.moonshot.cn/v1",
-        model="moonshot-v1-8k",
-        api_key="",
-    ),
-    "zhipu": LLMConfig(
-        name="zhipu",
-        provider="zhipu",
-        api_base="https://open.bigmodel.cn/api/paas/v4",
-        model="glm-4-flash",
+    "custom": LLMConfig(
+        name="custom",
+        provider="custom",
+        api_base="",
+        model="",
         api_key="",
     ),
 }

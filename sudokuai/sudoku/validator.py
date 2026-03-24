@@ -64,7 +64,9 @@ class SudokuValidator:
         return SudokuValidator.is_valid_solution(grid)
 
     @staticmethod
-    def compare_solutions(solution1: List[List[int]], solution2: List[List[int]]) -> bool:
+    def compare_solutions(
+        solution1: List[List[int]], solution2: List[List[int]]
+    ) -> bool:
         return solution1 == solution2
 
 

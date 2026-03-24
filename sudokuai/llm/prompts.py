@@ -6,7 +6,6 @@ Includes comprehensive education module for teaching Sudoku rules and strategies
 import re
 from typing import Optional, Tuple, List, Set
 
-
 SUDOKU_EDUCATION = """
 ## SUDOKU GAME EDUCATION MODULE
 
@@ -141,30 +140,30 @@ def format_board_for_prompt(grid: List[List[int]]) -> str:
 def get_possible_values(grid: List[List[int]], row: int, col: int) -> Set[int]:
     if grid[row][col] != 0:
         return set()
-    
+
     used = set()
-    
+
     for c in range(9):
         if grid[row][c] != 0:
             used.add(grid[row][c])
-    
+
     for r in range(9):
         if grid[r][col] != 0:
             used.add(grid[r][col])
-    
+
     box_row, box_col = 3 * (row // 3), 3 * (col // 3)
     for r in range(box_row, box_row + 3):
         for c in range(box_col, box_col + 3):
             if grid[r][c] != 0:
                 used.add(grid[r][c])
-    
+
     return set(range(1, 10)) - used
 
 
 def find_best_cell(grid: List[List[int]]) -> Tuple[int, int, Set[int]]:
     best_cell = None
     min_candidates = 10
-    
+
     for r in range(9):
         for c in range(9):
             if grid[r][c] == 0:
@@ -174,23 +173,23 @@ def find_best_cell(grid: List[List[int]]) -> Tuple[int, int, Set[int]]:
                     best_cell = (r, c, candidates)
                     if min_candidates == 1:
                         return best_cell
-    
+
     return best_cell if best_cell else (0, 0, set())
 
 
 def format_hints_for_cell(grid: List[List[int]], row: int, col: int) -> str:
     possible = get_possible_values(grid, row, col)
-    
+
     row_vals = [grid[row][c] for c in range(9) if grid[row][c] != 0]
     col_vals = [grid[r][col] for r in range(9) if grid[r][col] != 0]
-    
+
     box_row, box_col = 3 * (row // 3), 3 * (col // 3)
     box_vals = []
     for r in range(box_row, box_row + 3):
         for c in range(box_col, box_col + 3):
             if grid[r][c] != 0:
                 box_vals.append(grid[r][c])
-    
+
     return f"""Cell ({row},{col}) analysis:
   - Row {row} contains: {sorted(row_vals) if row_vals else 'empty'}
   - Column {col} contains: {sorted(col_vals) if col_vals else 'empty'}
@@ -202,21 +201,26 @@ def build_educational_intro() -> str:
     return SUDOKU_EDUCATION
 
 
-def build_step_prompt(grid: List[List[int]], step: int, previous_moves: List = None, 
-                      last_error: str = None, last_move: dict = None, 
-                      is_first_move: bool = False) -> str:
+def build_step_prompt(
+    grid: List[List[int]],
+    step: int,
+    previous_moves: List = None,
+    last_error: str = None,
+    last_move: dict = None,
+    is_first_move: bool = False,
+) -> str:
     board_str = format_board_for_prompt(grid)
-    
+
     best_row, best_col, best_candidates = find_best_cell(grid)
     hints = format_hints_for_cell(grid, best_row, best_col)
-    
+
     education_section = ""
     if is_first_move:
         education_section = f"""
 {SUDOKU_EDUCATION}
 
 """
-    
+
     error_feedback = ""
     if last_error and last_move:
         error_feedback = f"""
@@ -232,7 +236,7 @@ Please analyze this error. What constraint did you violate?
 Make a different, VALID move.
 
 """
-    
+
     move_history = ""
     if previous_moves and len(previous_moves) > 0:
         recent = previous_moves[-5:] if len(previous_moves) > 5 else previous_moves
@@ -246,9 +250,9 @@ Make a different, VALID move.
                 move_history += f" [Error: {m.error_detail[:30]}]"
             move_history += "\n"
         move_history += "\n"
-    
+
     empty_count = sum(1 for r in range(9) for c in range(9) if grid[r][c] == 0)
-    
+
     prompt = f"""{education_section}=== CURRENT GAME STATE ===
 
 Step: {step}
@@ -280,20 +284,25 @@ THINKING: Cell (2,4). Row 2 has 3,7,1. Column 4 has 5,9. Box has 3,5,7,9. Missin
 MOVE: 2,4,4
 
 Now make your move:"""
-    
+
     return prompt
 
 
-def build_error_feedback_prompt(grid: List[List[int]], step: int, error_detail: str,
-                                failed_move: dict, possible_values: set = None) -> str:
+def build_error_feedback_prompt(
+    grid: List[List[int]],
+    step: int,
+    error_detail: str,
+    failed_move: dict,
+    possible_values: set = None,
+) -> str:
     board_str = format_board_for_prompt(grid)
-    
-    analysis = format_hints_for_cell(grid, failed_move['row'], failed_move['col'])
-    
+
+    analysis = format_hints_for_cell(grid, failed_move["row"], failed_move["col"])
+
     hint = ""
     if possible_values:
         hint = f"\n✅ Valid values for cell ({failed_move['row']},{failed_move['col']}): {sorted(possible_values)}"
-    
+
     alternative_cells = ""
     best_row, best_col, best_candidates = find_best_cell(grid)
     if best_candidates:
@@ -301,7 +310,7 @@ def build_error_feedback_prompt(grid: List[List[int]], step: int, error_detail: 
 
 💡 SUGGESTION: Try cell ({best_row},{best_col}) instead.
 {format_hints_for_cell(grid, best_row, best_col)}"""
-    
+
     prompt = f"""❌ MOVE REJECTED
 
 Your move ({failed_move['row']},{failed_move['col']})={failed_move['value']} was INVALID!
@@ -334,14 +343,14 @@ THINKING: <your corrected reasoning>
 MOVE: <row>,<col>,<value>
 
 Your corrected move:"""
-    
+
     return prompt
 
 
 def build_oneshot_prompt(grid: List[List[int]]) -> str:
     board_str = format_board_for_prompt(grid)
     empty_count = sum(1 for r in range(9) for c in range(9) if grid[r][c] == 0)
-    
+
     prompt = f"""{SUDOKU_EDUCATION}
 
 === PUZZLE TO SOLVE ===
@@ -374,49 +383,51 @@ SOLUTION:
 ...
 
 Your complete solution:"""
-    
+
     return prompt
 
 
 def parse_move(response: str) -> Optional[Tuple[int, int, int, str]]:
     move_pattern = r"MOVE:\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)"
     match = re.search(move_pattern, response, re.IGNORECASE)
-    
+
     if match:
         row = int(match.group(1))
         col = int(match.group(2))
         value = int(match.group(3))
-        
+
         thinking_pattern = r"THINKING:\s*(.+?)(?=MOVE:|$)"
-        thinking_match = re.search(thinking_pattern, response, re.IGNORECASE | re.DOTALL)
+        thinking_match = re.search(
+            thinking_pattern, response, re.IGNORECASE | re.DOTALL
+        )
         reasoning = thinking_match.group(1).strip() if thinking_match else ""
-        
+
         return row, col, value, reasoning
-    
+
     return None
 
 
 def parse_solution(response: str) -> Optional[List[List[int]]]:
     solution_pattern = r"SOLUTION:\s*\n([\d\s\n]+)"
     match = re.search(solution_pattern, response, re.IGNORECASE)
-    
+
     if not match:
         lines = [line.strip() for line in response.strip().split("\n") if line.strip()]
         digit_lines = [line for line in lines if len(line) == 9 and line.isdigit()]
         if digit_lines and len(digit_lines) == 9:
             return [[int(c) for c in line] for line in digit_lines]
         return None
-    
+
     solution_text = match.group(1).strip()
     lines = [line.strip() for line in solution_text.split("\n") if line.strip()]
-    
+
     grid = []
     for line in lines:
         clean_line = "".join(c for c in line if c.isdigit())
         if len(clean_line) == 9:
             grid.append([int(c) for c in clean_line])
-    
+
     if len(grid) == 9:
         return grid
-    
+
     return None

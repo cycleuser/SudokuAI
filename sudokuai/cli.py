@@ -37,59 +37,99 @@ Examples:
 """,
     )
 
-    parser.add_argument("-V", "--version", action="version", version=f"sudokuai {__version__}")
+    parser.add_argument(
+        "-V", "--version", action="version", version=f"sudokuai {__version__}"
+    )
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("-o", "--output", help="Output file path")
-    parser.add_argument("--json", action="store_true", dest="json_output", help="Output as JSON")
-    parser.add_argument("-q", "--quiet", action="store_true", help="Suppress non-essential output")
+    parser.add_argument(
+        "--json", action="store_true", dest="json_output", help="Output as JSON"
+    )
+    parser.add_argument(
+        "-q", "--quiet", action="store_true", help="Suppress non-essential output"
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     gui_parser = subparsers.add_parser("gui", help="Launch graphical user interface")
-    gui_parser.add_argument("--no-web", action="store_true", help="Disable embedded web server")
+    gui_parser.add_argument(
+        "--no-web", action="store_true", help="Disable embedded web server"
+    )
 
     web_parser = subparsers.add_parser("web", help="Start web server")
     web_parser.add_argument("--host", default="127.0.0.1", help="Host address")
     web_parser.add_argument("--port", type=int, default=5000, help="Port number")
 
     gen_parser = subparsers.add_parser("generate", help="Generate a Sudoku puzzle")
-    gen_parser.add_argument("-d", "--difficulty", default="medium", 
-                           choices=["easy", "medium", "hard", "expert", "master"],
-                           help="Puzzle difficulty")
+    gen_parser.add_argument(
+        "-d",
+        "--difficulty",
+        default="medium",
+        choices=["easy", "medium", "hard", "expert", "master"],
+        help="Puzzle difficulty",
+    )
 
     solve_parser = subparsers.add_parser("solve", help="Solve a Sudoku puzzle")
     solve_parser.add_argument("input", help="Input puzzle file (JSON)")
 
-    validate_parser = subparsers.add_parser("validate", help="Validate a Sudoku solution")
+    validate_parser = subparsers.add_parser(
+        "validate", help="Validate a Sudoku solution"
+    )
     validate_parser.add_argument("input", help="Solution file (JSON)")
 
     play_parser = subparsers.add_parser("play", help="Have LLM play a Sudoku game")
     play_parser.add_argument("-p", "--provider", default="ollama", help="LLM provider")
-    play_parser.add_argument("-m", "--model", default=None, help="Model name (use 'models' command to list)")
-    play_parser.add_argument("-d", "--difficulty", default="medium", help="Game difficulty")
-    play_parser.add_argument("--mode", choices=["step", "oneshot"], default="step", help="Play mode")
+    play_parser.add_argument(
+        "-m", "--model", default=None, help="Model name (use 'models' command to list)"
+    )
+    play_parser.add_argument(
+        "-d", "--difficulty", default="medium", help="Game difficulty"
+    )
+    play_parser.add_argument(
+        "--mode", choices=["step", "oneshot"], default="step", help="Play mode"
+    )
 
-    eval_parser = subparsers.add_parser("evaluate", help="Evaluate LLM on multiple games")
+    eval_parser = subparsers.add_parser(
+        "evaluate", help="Evaluate LLM on multiple games"
+    )
     eval_parser.add_argument("-p", "--provider", default="ollama", help="LLM provider")
-    eval_parser.add_argument("-m", "--model", default=None, help="Model name (use 'models' command to list)")
-    eval_parser.add_argument("-g", "--games", type=int, default=3, help="Games per difficulty")
-    eval_parser.add_argument("--difficulties", default="easy,medium", help="Difficulty levels (comma-separated)")
-    eval_parser.add_argument("--mode", choices=["step", "oneshot"], default="step", help="Play mode")
+    eval_parser.add_argument(
+        "-m", "--model", default=None, help="Model name (use 'models' command to list)"
+    )
+    eval_parser.add_argument(
+        "-g", "--games", type=int, default=3, help="Games per difficulty"
+    )
+    eval_parser.add_argument(
+        "--difficulties",
+        default="easy,medium",
+        help="Difficulty levels (comma-separated)",
+    )
+    eval_parser.add_argument(
+        "--mode", choices=["step", "oneshot"], default="step", help="Play mode"
+    )
 
     report_parser = subparsers.add_parser("report", help="Generate evaluation report")
     report_parser.add_argument("input", help="Evaluation result file (JSON)")
 
-    models_parser = subparsers.add_parser("models", help="List available models from a provider")
-    models_parser.add_argument("-p", "--provider", default="ollama", help="Provider to query")
+    models_parser = subparsers.add_parser(
+        "models", help="List available models from a provider"
+    )
+    models_parser.add_argument(
+        "-p", "--provider", default="ollama", help="Provider to query"
+    )
 
-    config_parser = subparsers.add_parser("config", help="Manage LLM provider configurations")
+    config_parser = subparsers.add_parser(
+        "config", help="Manage LLM provider configurations"
+    )
     config_subparsers = config_parser.add_subparsers(dest="config_cmd")
-    
+
     config_list = config_subparsers.add_parser("list", help="List configured providers")
-    
+
     config_add = config_subparsers.add_parser("add", help="Add a new provider")
     config_add.add_argument("--name", required=True, help="Provider name")
-    config_add.add_argument("--provider", required=True, help="Provider type (ollama, openai, etc.)")
+    config_add.add_argument(
+        "--provider", required=True, help="Provider type (ollama, openai, etc.)"
+    )
     config_add.add_argument("--api-base", required=True, help="API base URL")
     config_add.add_argument("--model", required=True, help="Default model")
     config_add.add_argument("--api-key", default="", help="API key")
@@ -106,7 +146,7 @@ def output_result(result, args):
             content = json.dumps(result.data, indent=2, ensure_ascii=False)
         else:
             content = f"Error: {result.error}"
-    
+
     if getattr(args, "output", None):
         Path(args.output).write_text(content, encoding="utf-8")
         if not getattr(args, "quiet", False):
@@ -150,9 +190,13 @@ def cmd_play(args):
             for i, m in enumerate(models, 1):
                 print(f"  {i}. {m}")
             print(f"\nUse -m <model> to specify a model.")
-            print("Example: sudokuai play -m {0}".format(models[0] if models else "gemma3:4b"))
+            print(
+                "Example: sudokuai play -m {0}".format(
+                    models[0] if models else "gemma3:4b"
+                )
+            )
             return 1
-    
+
     result = llm_play_sudoku(
         difficulty=args.difficulty,
         provider=args.provider,
@@ -174,7 +218,7 @@ def cmd_evaluate(args):
                 print(f"  {i}. {m}")
             print(f"\nUse -m <model> to specify a model.")
             return 1
-    
+
     difficulties = [d.strip() for d in args.difficulties.split(",")]
     result = evaluate_llm(
         provider=args.provider,
@@ -234,6 +278,7 @@ def cmd_models(args):
 
 def has_display() -> bool:
     import os
+
     return os.environ.get("DISPLAY") is not None or sys.platform == "win32"
 
 
@@ -244,18 +289,22 @@ def main():
     if args.command is None:
         if has_display():
             from .gui import run_gui
+
             return run_gui()
         else:
             print("No display available. Starting web server...")
             from .app import run_server
+
             return run_server()
 
     if args.command == "gui":
         from .gui import run_gui
+
         return run_gui()
 
     if args.command == "web":
         from .app import run_server
+
         return run_server(host=args.host, port=args.port)
 
     if args.command == "generate":

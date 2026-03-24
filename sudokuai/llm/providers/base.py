@@ -24,8 +24,9 @@ class BaseProvider(ABC):
         self.api_key = api_key
 
     @abstractmethod
-    def chat(self, messages: list[dict], temperature: float = 0.0, 
-             max_tokens: int = 2048) -> LLMResponse:
+    def chat(
+        self, messages: list[dict], temperature: float = 0.0, max_tokens: int = 2048
+    ) -> LLMResponse:
         pass
 
     @abstractmethod

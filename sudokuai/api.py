@@ -24,7 +24,6 @@ from .llm.player import play_game
 from .llm.evaluator import evaluate_model
 from .report.generator import generate_evaluation_report, generate_comparison_report
 
-
 _providers: Dict[str, LLMConfig] = dict(DEFAULT_PROVIDERS)
 
 
@@ -189,7 +188,11 @@ def solve_sudoku(puzzle: List[List[int]]) -> ToolResult:
             return ToolResult(
                 success=True,
                 data=solution,
-                metadata={"original_clues": sum(1 for row in puzzle for cell in row if cell != 0)},
+                metadata={
+                    "original_clues": sum(
+                        1 for row in puzzle for cell in row if cell != 0
+                    )
+                },
             )
         return ToolResult(success=False, error="Puzzle is not solvable")
     except Exception as e:
@@ -220,9 +223,9 @@ def llm_play_sudoku(
         config = _providers.get(provider)
         if not config:
             return ToolResult(success=False, error=f"Unknown provider: {provider}")
-        
+
         effective_api_key = api_key if api_key else config.api_key
-        
+
         if model:
             config = LLMConfig(
                 name=config.name,
@@ -239,16 +242,16 @@ def llm_play_sudoku(
                 model=config.model,
                 api_key=effective_api_key,
             )
-        
+
         gen_result = generate_sudoku(difficulty)
         if not gen_result.success:
             return gen_result
-        
+
         game = SudokuGame.from_dict(gen_result.data)
         play_mode = PlayMode.STEP_BY_STEP if mode == "step" else PlayMode.ONE_SHOT
-        
+
         result = play_game(game, config, play_mode, verbose=verbose)
-        
+
         return ToolResult(
             success=True,
             data=result.to_dict(),
@@ -275,9 +278,9 @@ def evaluate_llm(
         config = _providers.get(provider)
         if not config:
             return ToolResult(success=False, error=f"Unknown provider: {provider}")
-        
+
         effective_api_key = api_key if api_key else config.api_key
-        
+
         if model:
             config = LLMConfig(
                 name=config.name,
@@ -294,10 +297,10 @@ def evaluate_llm(
                 model=config.model,
                 api_key=effective_api_key,
             )
-        
+
         difficulties = difficulties or ["easy", "medium"]
         play_mode = PlayMode.STEP_BY_STEP if mode == "step" else PlayMode.ONE_SHOT
-        
+
         result = evaluate_model(
             config,
             difficulties=difficulties,
@@ -305,7 +308,7 @@ def evaluate_llm(
             mode=play_mode,
             verbose=verbose,
         )
-        
+
         return ToolResult(
             success=True,
             data=result.to_dict(),
@@ -334,7 +337,7 @@ def generate_report(evaluation_json: str) -> ToolResult:
             play_results=[],
             evaluated_at=datetime.now(),
         )
-        
+
         report = generate_evaluation_report(result)
         return ToolResult(
             success=True,
@@ -354,33 +357,26 @@ def list_llm_providers() -> ToolResult:
 
 def list_available_models(provider: str = "ollama") -> ToolResult:
     try:
-        from .llm.providers.ollama import OllamaProvider
-        from .llm.providers.openai_compatible import (
-            AliyunProvider, MinimaxProvider, DeepSeekProvider,
-            OpenAIProvider, MoonshotProvider, ZhipuProvider
-        )
-        
-        provider_model_map = {
-            "ollama": (OllamaProvider, True),
-            "aliyun": (AliyunProvider, False),
-            "minimax": (MinimaxProvider, False),
-            "deepseek": (DeepSeekProvider, False),
-            "openai": (OpenAIProvider, False),
-            "moonshot": (MoonshotProvider, False),
-            "zhipu": (ZhipuProvider, False),
-        }
-        
-        if provider not in provider_model_map:
-            return ToolResult(success=False, error=f"Unknown provider: {provider}")
-        
-        provider_class, needs_api = provider_model_map[provider]
-        
         if provider == "ollama":
+            from .llm.providers.ollama import OllamaProvider
+
             instance = OllamaProvider()
             models = instance.list_models()
         else:
-            models = provider_class.KNOWN_MODELS
-        
+            config = _providers.get(provider)
+            if not config or not config.api_key:
+                return ToolResult(
+                    success=False, error=f"No API key configured for {provider}"
+                )
+            from .llm.providers.custom import CustomProvider
+
+            instance = CustomProvider(
+                api_base=config.api_base,
+                model=config.model,
+                api_key=config.api_key,
+            )
+            models = instance.list_models()
+
         return ToolResult(
             success=True,
             data={"provider": provider, "models": models},
@@ -421,9 +417,9 @@ def dispatch(function_name: str, arguments: dict) -> ToolResult:
         "evaluate_llm": lambda args: evaluate_llm(**args),
         "generate_report": lambda args: generate_report(**args),
     }
-    
+
     handler = handlers.get(function_name)
     if not handler:
         return ToolResult(success=False, error=f"Unknown function: {function_name}")
-    
+
     return handler(arguments)

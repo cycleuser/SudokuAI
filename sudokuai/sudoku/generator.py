@@ -48,8 +48,9 @@ class SudokuGenerator:
 
     @staticmethod
     def create_puzzle(difficulty: str = "medium") -> Tuple[SudokuBoard, SudokuBoard]:
-        config = SudokuGenerator.DIFFICULTY_CONFIG.get(difficulty, 
-                                                        SudokuGenerator.DIFFICULTY_CONFIG["medium"])
+        config = SudokuGenerator.DIFFICULTY_CONFIG.get(
+            difficulty, SudokuGenerator.DIFFICULTY_CONFIG["medium"]
+        )
         min_clues, max_clues = config["clues_range"]
         target_clues = random.randint(min_clues, max_clues)
 
@@ -87,6 +88,8 @@ class SudokuGenerator:
         }
 
 
-def generate_puzzle(difficulty: str = "medium") -> Tuple[list[list[int]], list[list[int]]]:
+def generate_puzzle(
+    difficulty: str = "medium",
+) -> Tuple[list[list[int]], list[list[int]]]:
     puzzle, solution = SudokuGenerator.create_puzzle(difficulty)
     return puzzle.grid, solution.grid

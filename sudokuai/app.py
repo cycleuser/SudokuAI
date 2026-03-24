@@ -19,7 +19,6 @@ from .api import (
 )
 from .report.generator import generate_evaluation_report
 
-
 app = Flask(__name__)
 
 
@@ -42,7 +41,7 @@ def api_solve():
     puzzle = data.get("puzzle")
     if not puzzle:
         return jsonify({"success": False, "error": "No puzzle provided"}), 400
-    
+
     result = solve_sudoku(puzzle)
     return jsonify(result.to_dict())
 
@@ -53,7 +52,7 @@ def api_validate():
     solution = data.get("solution")
     if not solution:
         return jsonify({"success": False, "error": "No solution provided"}), 400
-    
+
     result = validate_sudoku(solution)
     return jsonify(result.to_dict())
 
@@ -62,7 +61,7 @@ def api_validate():
 def api_play():
     data = request.json or {}
     api_key = data.get("api_key")
-    
+
     result = llm_play_sudoku(
         difficulty=data.get("difficulty", "medium"),
         provider=data.get("provider", "ollama"),
@@ -78,7 +77,7 @@ def api_evaluate():
     data = request.json or {}
     difficulties = data.get("difficulties", ["easy", "medium"])
     api_key = data.get("api_key")
-    
+
     result = evaluate_llm(
         provider=data.get("provider", "ollama"),
         model=data.get("model"),
@@ -109,11 +108,12 @@ def api_report():
     evaluation = data.get("evaluation")
     if not evaluation:
         return jsonify({"success": False, "error": "No evaluation data provided"}), 400
-    
+
     if isinstance(evaluation, str):
         evaluation = json.loads(evaluation)
-    
+
     from .core import EvaluationResult
+
     result = EvaluationResult(
         model_name=evaluation["model_name"],
         provider=evaluation["provider"],
@@ -126,7 +126,7 @@ def api_report():
         play_results=[],
         evaluated_at=datetime.now(),
     )
-    
+
     report = generate_evaluation_report(result)
     return jsonify({"success": True, "data": report})
 

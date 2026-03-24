@@ -136,6 +136,7 @@ class TestSudokuGenerator:
 class TestAPI:
     def test_generate_sudoku(self):
         from sudokuai.api import generate_sudoku
+
         result = generate_sudoku("easy")
         assert result.success
         assert "puzzle" in result.data
@@ -143,6 +144,7 @@ class TestAPI:
 
     def test_solve_sudoku(self):
         from sudokuai.api import solve_sudoku
+
         puzzle = [
             [5, 3, 0, 0, 7, 0, 0, 0, 0],
             [6, 0, 0, 1, 9, 5, 0, 0, 0],
@@ -160,6 +162,7 @@ class TestAPI:
 
     def test_validate_sudoku(self):
         from sudokuai.api import validate_sudoku
+
         solution = [
             [5, 3, 4, 6, 7, 8, 9, 1, 2],
             [6, 7, 2, 1, 9, 5, 3, 4, 8],

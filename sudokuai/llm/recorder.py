@@ -23,8 +23,16 @@ class GameRecorder:
     def clear(self) -> None:
         self.moves = []
 
-    def log_move(self, game_id: str, step: int, row: int, col: int, 
-                 value: int, is_valid: bool, reasoning: str = "") -> GameMove:
+    def log_move(
+        self,
+        game_id: str,
+        step: int,
+        row: int,
+        col: int,
+        value: int,
+        is_valid: bool,
+        reasoning: str = "",
+    ) -> GameMove:
         move = GameMove(
             game_id=game_id,
             step=step,
@@ -38,14 +46,16 @@ class GameRecorder:
         self.moves.append(move)
         return move
 
-    def save_play_result(self, result: PlayResult, filename: Optional[str] = None) -> Path:
+    def save_play_result(
+        self, result: PlayResult, filename: Optional[str] = None
+    ) -> Path:
         if filename is None:
             filename = f"play_{result.game_id}_{result.model_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        
+
         filepath = self.output_dir / filename
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, indent=2, ensure_ascii=False)
-        
+
         return filepath
 
     def export_log(self, filename: str = "game_log.json") -> Path:
@@ -62,7 +72,7 @@ class GameRecorder:
     def get_summary(self) -> dict:
         if not self.moves:
             return {"total": 0, "valid": 0, "invalid": 0, "valid_rate": 0.0}
-        
+
         valid = sum(1 for m in self.moves if m.is_valid)
         total = len(self.moves)
         return {

@@ -13,15 +13,18 @@ class OllamaProvider(BaseProvider):
     DEFAULT_BASE = "http://localhost:11434/v1"
     DEFAULT_MODEL = "gemma3:4b"
 
-    def __init__(self, api_base: str = None, model: str = None, api_key: str = "ollama"):
+    def __init__(
+        self, api_base: str = None, model: str = None, api_key: str = "ollama"
+    ):
         self.api_base = api_base or self.DEFAULT_BASE
         self.model = model or self.DEFAULT_MODEL
         self.api_key = api_key
 
-    def chat(self, messages: list[dict], temperature: float = 0.0, 
-             max_tokens: int = 2048) -> LLMResponse:
+    def chat(
+        self, messages: list[dict], temperature: float = 0.0, max_tokens: int = 2048
+    ) -> LLMResponse:
         url = f"{self.api_base}/chat/completions"
-        
+
         payload = {
             "model": self.model,
             "messages": messages,
@@ -48,7 +51,9 @@ class OllamaProvider(BaseProvider):
             if response.status_code == 200:
                 models = response.json().get("models", [])
                 model_names = [m["name"] for m in models]
-                return self.model in model_names or any(self.model in n for n in model_names)
+                return self.model in model_names or any(
+                    self.model in n for n in model_names
+                )
             return False
         except Exception:
             return False

@@ -35,7 +35,9 @@ class SudokuSolver:
         return False
 
     @staticmethod
-    def get_hint(board: SudokuBoard, solution: SudokuBoard) -> Optional[tuple[int, int, int]]:
+    def get_hint(
+        board: SudokuBoard, solution: SudokuBoard
+    ) -> Optional[tuple[int, int, int]]:
         empty = board.get_empty_cells()
         if not empty:
             return None

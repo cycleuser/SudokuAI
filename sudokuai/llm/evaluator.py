@@ -63,10 +63,14 @@ class LLMEvaluator:
             for i in range(games_per_difficulty):
                 game_count += 1
                 game_id = f"{difficulty}_{i+1}"
-                
+
                 if self.verbose:
                     progress = (game_count / total_games) * 100
-                    print(f"\r📊 Overall progress: {progress:.1f}% | Game {game_count}/{total_games} ({difficulty} #{i+1})", end="", flush=True)
+                    print(
+                        f"\r📊 Overall progress: {progress:.1f}% | Game {game_count}/{total_games} ({difficulty} #{i+1})",
+                        end="",
+                        flush=True,
+                    )
 
                 game_data = SudokuGenerator.generate_game(difficulty)
                 game = SudokuGame(
@@ -95,28 +99,39 @@ class LLMEvaluator:
 
             if self.verbose:
                 print()  # Clear progress line
-                accuracy = correct / games_per_difficulty if games_per_difficulty > 0 else 0
-                debug_print(f"{difficulty.upper()}: {correct}/{games_per_difficulty} correct ({accuracy:.0%})", 
-                           "SUCCESS" if accuracy >= 0.5 else "ERROR")
+                accuracy = (
+                    correct / games_per_difficulty if games_per_difficulty > 0 else 0
+                )
+                debug_print(
+                    f"{difficulty.upper()}: {correct}/{games_per_difficulty} correct ({accuracy:.0%})",
+                    "SUCCESS" if accuracy >= 0.5 else "ERROR",
+                )
 
             results_by_difficulty[difficulty] = {
                 "total": games_per_difficulty,
                 "completed": completed,
                 "correct": correct,
-                "accuracy": correct / games_per_difficulty if games_per_difficulty > 0 else 0,
+                "accuracy": (
+                    correct / games_per_difficulty if games_per_difficulty > 0 else 0
+                ),
             }
 
         total_time = time.time() - start_time
         total_games_actual = len(all_results)
         completed_games = sum(1 for r in all_results if r.completed)
         correct_games = sum(1 for r in all_results if r.correct)
-        overall_accuracy = correct_games / total_games_actual if total_games_actual > 0 else 0
+        overall_accuracy = (
+            correct_games / total_games_actual if total_games_actual > 0 else 0
+        )
 
         if self.verbose:
             print("\n" + "=" * 50)
             debug_print("Evaluation Complete!", "SUCCESS")
             debug_print(f"Total time: {total_time:.1f}s", "INFO")
-            debug_print(f"Overall accuracy: {overall_accuracy:.1%}", "SUCCESS" if overall_accuracy >= 0.5 else "ERROR")
+            debug_print(
+                f"Overall accuracy: {overall_accuracy:.1%}",
+                "SUCCESS" if overall_accuracy >= 0.5 else "ERROR",
+            )
             debug_print(f"Correct: {correct_games}/{total_games_actual}", "INFO")
             print("=" * 50 + "\n")
 
